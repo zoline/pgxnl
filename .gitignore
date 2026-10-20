@@ -1,0 +1,34 @@
+# 비밀 정보 — 절대 올리지 않는다 (.env.example 만 올림)
+.env
+.env.*
+!.env.example
+
+# 개인·로컬 설정
+.claude/
+.mcp.json
+demo.txt
+
+# 로그·백업 (시스템 DB 덤프, 내부 평가 기록)
+*.log
+backup/
+db/backups/
+data/*.bak*
+data/*.orig.*
+data/bird_minidev_pg_qfix.json
+data/eval_runs_before_400.json
+data/pgxnl_glossary*.json
+data/pgxnl_join_candidates*.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# 브라우저 자동화·데모 산출물
+.playwright-browsers/
+.playwright-mcp/
+.demo-shots/

@@ -1,0 +1,4 @@
+jsplumb.min.js — jsPlumb Community Edition v2.15.6 (MIT OR GPL-2.0)
+https://www.npmjs.com/package/jsplumb
+Vendored locally (2026-09-17) so pgxnl's Schema 탐색 ERD works without a
+runtime CDN dependency.

@@ -1,0 +1,282 @@
+[
+ {
+  "id": 15,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "341",
+  "reason": "gold 오타: (cardKingdomId IS NULL OR cardKingdomId IS NULL) — 같은 컬럼 두 번. 2026-10-02 데이터셋에서 cardKingdomFoilId IS NULL OR cardKingdomId IS NULL 로 정정",
+  "evidence": "evidence: powerful foils = cardKingdomFoilId paired with cardKingdomId AND cardKingdomId is not null (seq 346 qid 340 evidence도 동일 정의). 'without powerful foils' = NOT(그것). borderless 기준 원 gold 67행, 정정 gold 72행(차이 5행 = foilId NULL·cardKingdomId 있음). run 333 pred와 정정 gold 일치."
+ },
+ {
+  "id": 16,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "352",
+  "reason": "데이터 정합성: foreign_data 에 cards 와 연결되지 않는 번역 16행(FK 미선언). 모델 해석(언어 정보가 있는 번역 중 Chinese Simplified 비율)은 맞고, gold 는 cards INNER JOIN 으로 이 16행이 빠질 뿐. evidence 는 Sum→Count 최소 정정(2026-10-06)",
+  "evidence": "분자 20,106 동일. 분모 gold 229,170 / pred(foreign_data 단독) 229,186 → 8.773399% vs 8.772787%. 16행은 language·uuid 모두 값이 있어 'language/uuid IS NOT NULL' 로 걸러지지 않음 — 'uuid IN (SELECT uuid FROM cards)' 만 일치(=조인 지시라 evidence 에 넣지 않음). 시도: Count(cards.id)→LEFT JOIN 7.98%, 'counting only cards that have language information'→foreign_data 단독 그대로. JOIN 그래프 후보 cards.uuid=foreign_data.uuid(이력 9회) 미승인."
+ },
+ {
+  "id": 19,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "391",
+  "reason": "질문 불충분: 'Among the Artifact cards, which are …' 는 무엇을 돌려줄지(id/name) 말하지 않는데 gold 는 DISTINCT name. 같은 형태 340·341·344·347 은 id 라 용어집 96(cards→id)과 충돌. 2026-10-06 질문을 gold 형태에 맞춰 'Among the Artifact card names, …' 로 정정(gold 그대로, 8행)",
+  "evidence": "질문 'Among the Artifact cards, which are black color and comes with foreign language translation?' — name 언급 없음. seq 346 'Which are the cards that …' gold SELECT id. run 353 pred SELECT T1.id"
+ },
+ {
+  "id": 20,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "405",
+  "reason": "evidence 오기: language = 'Portuguese (Brasil)' — 데이터에 없는 값. 실제 값과 gold 는 'Portuguese (Brazil)'. 2026-10-06 evidence 정정(gold 불변)",
+  "evidence": "set_translations 포르투갈어 값은 'Portuguese (Brazil)' 하나(121행), 'Brasil' 0행. run 358 pred 가 evidence 그대로 'Brasil' → 0, gold 7. 백업 data/*.bak.20261006d"
+ },
+ {
+  "id": 21,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "486",
+  "reason": "evidence 분모 오기: DIVIDE(SUM(convertedManaCost = 7), SUM(convertedManaCost)) — 비용 합계라 '카드 중 비율'이 아님. gold 는 COUNT(T1.id). 2026-10-06 분모만 Count(id) 로 정정(gold 불변)",
+  "evidence": "같은 card_games 비율 문항 352·368·371 evidence 가 분모를 Count(id) 로 씀. run 358 pred 가 evidence 그대로 SUM(convertedmanacost) 분모 → ✗, run 356·359 는 우연히 행 수 분모로 ✓. 백업 data/*.bak.20261006e"
+ },
+ {
+  "id": 22,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "529",
+  "reason": "gold·evidence 오류: 'doesn't have Japanese translation' 을 같은 행 조건(language='Korean' AND NOT LIKE '%Japanese%')으로 써 아무것도 거르지 않음 — '한국어 번역 있는 세트' 121행을 냄. 질문 의도(세트 단위 부정)는 NOT IN. 2026-10-07 gold·evidence 를 질문 의도대로 정정(질문 불변). 주의: 정정 gold 는 빈 집합(0행) — 변별력 약함",
+  "evidence": "한국어 번역 세트 121 = 일본어 번역 세트 121 = 둘 다 121 → 답 0행. NOT IN 형태 pred(run 330·335·336·339·359·366)가 매번 오답 처리됐음. 백업 data/*.bak.20261007a"
+ },
+ {
+  "id": 23,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "474",
+  "reason": "evidence 오기: 'base set number of under 100 refers to baseSetSize < 10' — 질문(under 100)·gold(< 100)와 다른 숫자. 2026-10-07 evidence 를 < 100 으로 정정(gold 불변)",
+  "evidence": "< 10 이면 0, < 100 이면 30. pred 가 evidence 를 따르면 ✗(run 369·371·374·376), 질문을 따르면 ✓. 백업 data/*.bak.20261007b"
+ },
+ {
+  "id": 24,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "345",
+  "reason": "gold 컬럼 오류(결과 우연 일치): evidence 는 'Artifact type of cards refers to types = ''Artifact''' 인데 gold 는 T1.type = 'Artifact'(타입 줄이 정확히 Artifact 인 카드만). 결과가 DISTINCT status 라 types 로 써도 같은 값 목록이 나와 채점엔 영향 없음",
+  "evidence": "type 은 타입 줄 전체(2,022종), types 는 카드 종류(37종). pred(types)는 evidence 대로 써서 ✓✓. 정정하지 않고 기록만(2026-10-12)."
+ },
+ {
+  "id": 25,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "402",
+  "reason": "질문 정정: 비율(percentage)과 ID 목록(List them by their ID)은 결과 모양이 달라 SQL 하나로 답할 수 없다(질문 불성립). evidence 수식·gold 모두 비율만 정의하므로 2026-10-12 질문에서 'List them by their ID.' 제거(gold 불변). evidence 오타 isStorylight → isStorySpotlight 도 정정",
+  "evidence": "pred 는 두 요구를 합치려 GROUP BY id 로 카드마다 100% 인 104행을 냄 — 의미상으로도 틀림. run 353~392 전부 ✗. 백업 data/*.bak.20261012a"
+ },
+ {
+  "id": 26,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "416",
+  "reason": "evidence 불충분(계산 단위): 'percentage of cards without power are in French' 는 카드 단위(47.96%)·번역 행 단위(gold 12.98%)·번역 행+번역 없는 카드(11.58%)로 갈린다. gold 는 INNER JOIN + WHERE 로 foreign_data 행 기준. evidence 의 COUNT(조건)/COUNT(조건) 표기를 그대로 옮기면 모델이 COUNT(CASE…) 두 개 + LEFT JOIN(카드 전체 분모)으로 간다. 2026-10-12 evidence 에 'the percentage is computed over the rows of cards without power, not over the cards themselves' 보충(테이블 이름은 넣지 않음 — 사용자 결정)(gold 불변)",
+  "evidence": "run 353~399 26회: WHERE 필터형 INNER 17회 ✓, CASE 분모형 LEFT 9회 모두 ✗. power 없는 카드 31,053, 번역 있는 카드 17,256, 프랑스어판 있는 카드 14,892, 번역 행 114,772. 백업 data/*.bak.20261012c"
+ },
+ {
+  "id": 27,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "424",
+  "reason": "evidence 표기 모호: 분모 COUNT(Textless) 를 SQL 그대로 읽으면 전체 카드(값이 다 있음)지만 '글 없는 카드 수'로 읽히기 쉽다. 2026-10-12 COUNT(Textless) → COUNT(*) 로 정정(gold 분모와 동일, gold 불변)",
+  "evidence": "전체 56,822 중 글 없는 카드 115 — 모두 normal 이라 '글 없는 카드 중 비율'로 읽으면 늘 100%(gold 0.20%). run 353~402 27회 중 24회 분모를 글 없는 카드로 잡아 ✗. 백업 data/*.bak.20261012e"
+ },
+ {
+  "id": 28,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "408",
+  "reason": "evidence 불충분: 'text contains …' 의 text 가 cards·rulings·foreign_data 세 테이블에 있는데 어느 것인지 안 밝힘. gold 는 rulings.text(판정 설명). 2026-10-12 'the ruling text contains …' 로 보충(gold 불변)",
+  "evidence": "cards.text 매칭 카드 35, rulings.text 매칭 카드 1,382(gold). 모델은 매번 cards.text. 용어집(#104~106)으로는 안 고쳐짐(run 406). 백업 data/*.bak.20261012f"
+ },
+ {
+  "id": 29,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "415",
+  "reason": "evidence 오기: Status = 'legal'(소문자) — 실제 값과 gold 는 'Legal'. 2026-10-12 'Legal' 로 정정(gold 불변)",
+  "evidence": "legalities.status 값은 Banned/Legal/Restricted. pred 가 evidence 를 따르면 0행(run 406). 백업 data/*.bak.20261012f"
+ },
+ {
+  "id": 30,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "483",
+  "reason": "질문 정정: 'Italian text ruling' 의 ruling 은 데이터에 없는 대상을 가리킨다(rulings 에는 언어 컬럼이 없어 이탈리아어 판정 설명이 존재하지 않음). gold 는 foreign_data 의 이탈리아어 카드 문구. 2026-10-12 질문에서 'ruling' 제거 → 'Please list the Italian text of all the cards in the set Coldsnap.'(gold 불변, 사용자 결정)",
+  "evidence": "pred 는 ruling 낱말 때문에 rulings 를 조인에 끼워 넣어 68행(판정 있는 카드만) 또는 rulings.text 를 냄. gold 149행. JOIN 그래프·용어집(#104~106)으로는 안 고쳐짐. 백업 data/*.bak.20261012g"
+ },
+ {
+  "id": 31,
+  "target_name": "BIRD",
+  "db_id": "card_games",
+  "question_id": "484",
+  "reason": "gold 오류 2건: ① 질문은 Italian names 인데 gold 는 T2.name(cards 의 영어 이름)을 반환 ② evidence 가 'highest converted mana cost refers to MAX(convertedManaCost)' 인데 gold 는 ORDER BY 만 하고 거르지 않아 Coldsnap 카드 155행 전부를 냄. 질문·evidence 는 맞음",
+  "evidence": "올바른 답: foreign_data.name(Italian) 중 convertedManaCost = Coldsnap 최대값(7) 인 카드 12행(모두 다른 이름). pred(run 407, MAX 서브쿼리 + T3.name)가 이와 일치. 정답 SQL 후보: SELECT T1.name FROM foreign_data T1 JOIN cards T2 ON T2.uuid=T1.uuid JOIN sets T3 ON T3.code=T2.setCode WHERE T3.name='Coldsnap' AND T1.language='Italian' AND T2.convertedManaCost=(SELECT MAX(T4.convertedManaCost) FROM cards T4 JOIN sets T5 ON T5.code=T4.setCode WHERE T5.name='Coldsnap')"
+ },
+ {
+  "id": 32,
+  "target_name": "BIRD",
+  "db_id": "california_schools",
+  "question_id": "27",
+  "reason": "질문 불충분: gold 는 schools LEFT JOIN satscores(점수 없는 학교도 포함)인데, 질문의 'if there is any' 는 communication number(phone, schools 컬럼)에만 붙어 점수 결측 허용을 전달하지 못함. 2026-10-13 점수 요구에도 'if there is any' 추가(gold 불변)",
+  "evidence": "pred 는 INNER JOIN 으로 813행(gold 8,574행). 요구 구분 표시(enrichment) + 점수 쪽 표지로 임시 run 411 ✓✓(schools LEFT JOIN satscores). 9/14 실측: 표지만 옮기면(요구 구분 없음) INNER 유지. 백업 data/*.bak.20261013a"
+ },
+ {
+  "id": 33,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "586",
+  "reason": "T1.title은 요청하지 않았음.",
+  "evidence": "gold 정정(2026-10-19 사용자): SELECT 에서 T1.Title 제거 → DisplayName 만(chl, shabbychef). 질문 'Which user' 와 evidence 'user refers to DisplayName'. 데이터셋 백업 .bak.20261019."
+ },
+ {
+  "id": 34,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "595",
+  "reason": "정답 성립 불가: ① evidence 는 'Views >= 1000'(users.views)인데 gold 는 posts.ViewCount >= 1000 을 씀 ② 질문 'only one post history per post' 를 gold 는 COUNT(DISTINCT PostHistoryTypeId)=1(이력 종류가 하나)로 구현 — 글 단위 조건이 아님. gold 첫 사용자 57 은 글 95 에 이력 4행(최초 본문·제목·태그·태그 수정)이 있어 질문과 어긋남.",
+  "evidence": "해석별 결과: 글 전체 이력 1행 또는 사용자별 이력 1행 + posts.viewcount>=1000 → 100명, 사용자별 이력 1행 + users.views>=1000(evidence) → 0명, gold → 94명. pred(run 480)는 GROUP BY userid, postid 로 26,853행(중복). 데이터셋 안에 해석을 가를 근거가 없어 gold 미정정 — 2026-10-16 사용자 결정"
+ },
+ {
+  "id": 35,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "604",
+  "reason": "evidence 계산식 오류: 'average age = Divide (Sum(Age), Count(UserId))' 는 나이 NULL 사용자(1,165명 중 853명)까지 분모에 넣어 9.13, gold 는 AVG(Age)=34.08.",
+  "evidence": "evidence 정정(2026-10-16 사용자): average age = AVG(Age). 데이터셋 bird_minidev_pg.json·_qfix.json, 백업 .bak.20261016. upvotes 쪽은 NULL 없음(182.28 일치). 추가 정정(같은 날): average of the up votes = AVG(UpVotes) — REAL 나눗셈은 공식 채점에서 gold AVG(numeric)와 값 표현이 달라 ✗."
+ },
+ {
+  "id": 36,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "672",
+  "reason": "gold 가 사용자가 아니라 글을 셈: 'how many users' 인데 COUNT(T1.Id) 가 조인 행(글) 수 19 — favorite 4 이상 글이 여러 개인 사용자 4명(1871 은 3개)이 중복.",
+  "evidence": "해석별: 사용자 수(evidence 글 단위 FavoriteCount>=4) 14 = pred(run 500, COUNT(DISTINCT T1.id)), 사용자별 favorite 합계>=4 로 읽으면 18. gold 미정정 — 2026-10-19 사용자 '일단 결함으로 표시'."
+ },
+ {
+  "id": 37,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "640",
+  "reason": "gold 중복 집계: postHistory 를 거쳐 조회수를 합산 — Amos 의 글 54(조회수 497)가 이력 3행(최초 본문·제목·태그)이라 세 번 더해져 1,491. 질문은 'posts posted by'(작성한 글).",
+  "evidence": "올바른 답: posts.owneruserid 기준 -497 = pred(run 500). Mornington 은 users 에 소문자 'mornington'(id 47)만 있어 gold·pred 모두 0. gold 미정정 — 2026-10-19 사용자 '결함으로 표시만'."
+ },
+ {
+  "id": 38,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "682",
+  "reason": "gold 오류: ① 'its id'(글 id)인데 OwnerUserId(작성자 id 890)를 반환 ② 'post in 2010' 을 users.CreationDate(가입일)로 거름. evidence 의 'in 2015' 는 오기(조건은 2010).",
+  "evidence": "gold 정정(2026-10-19 사용자): SELECT T2.Id, … WHERE year(T2.CreaionDate)=2010 → (1595, Fabian Fagerholm) = pred(run 500). 조인 없이도 1위·동점 없음 확인. 데이터셋 백업 .bak.20261019b."
+ },
+ {
+  "id": 39,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "694",
+  "reason": "gold 오류: ① 'the user who left it'(댓글 작성자)인데 글쓴이(posts.OwnerUserId)의 DisplayName 을 붙임 — 10행 모두 eliavs ② 'latest = MAX(CreationDate)' 를 댓글 작성일이 아니라 글쓴이 가입일(users.CreationDate)로 정렬.",
+  "evidence": "gold 정정(2026-10-19 사용자): comments.UserId 로 users 조인, ORDER BY T3.CreationDate. 이 글의 댓글은 정확히 10개라 댓글 집합은 정정 전후 같고 이름만 바뀜. pred(run 500)와 같음. 데이터셋 백업 .bak.20261019c."
+ },
+ {
+  "id": 40,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "710",
+  "reason": "gold 오류: 'how many of the comments have 0 score' 인데 posts.Score(글 점수)로 거름 → 점수 0인 글에 달린 댓글 수 2,888.",
+  "evidence": "gold 정정(2026-10-19 사용자): T2.Score → T1.Score(댓글 점수) → 10,997 = pred(run 500). 데이터셋 백업 .bak.20261019d."
+ },
+ {
+  "id": 41,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "584",
+  "reason": "질문 모호 + gold 불필요 행: 'comments left by users who edited the post' 를 gold 는 그 글의 posthistory.Comment(편집 메모) 8행 전부로 — 편집이 아닌 최초 작성 3행의 빈 메모·중복 포함.",
+  "evidence": "다른 해석: 편집자(이력 유형 4·5·6)가 그 글에 단 comments 3행. pred(run 503)는 lasteditoruserid 1명의 댓글 1행으로 어느 해석에도 안 맞음. gold 미정정 — 2026-10-19 사용자."
+ },
+ {
+  "id": 42,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "637",
+  "reason": "gold 중복: 'his posts'(작성한 글)인데 postHistory 경유로 같은 글의 태그가 이력 행 수만큼 반복(5행). 집합은 같아 공식 ✓, pgxnl ✗.",
+  "evidence": "gold 정정(2026-10-19 사용자): users JOIN posts ON OwnerUserId → 2행(None, '<books>') = pred(run 503). 데이터셋 백업 .bak.20261019e."
+ },
+ {
+  "id": 43,
+  "target_name": "BIRD",
+  "db_id": "codebase_community",
+  "question_id": "639",
+  "reason": "gold 오류: 'posts that use the R language' 를 postHistory + tags.ExcerptPostId(태그 설명 글)로 셈 → 0.1957%. Community(id -1) 작성 글 211개 중 <r> 태그 글 0개 → 질문대로면 0%.",
+  "evidence": "pred(run 503) 0.0 도 tags.ExcerptPostId 조인이라 방법이 틀리고 값만 우연히 맞음. gold 미정정 — 2026-10-19 사용자."
+ },
+ {
+  "id": 44,
+  "target_name": "BIRD",
+  "db_id": "debit_card_specializing",
+  "question_id": "1490",
+  "reason": "gold 가 고객이 아니라 월 기록을 셈: evidence 는 분자·분모 모두 'Total no. of LAM customers' 인데 gold 는 SUM(CASE…)/COUNT(T1.CustomerID) 로 yearmonth 행 58,653/59,530 = 98.53%.",
+  "evidence": "gold 정정(2026-10-19 사용자): COUNT(DISTINCT …CustomerID) 로 3,594/3,611 = 99.53% = pred(run 512). 기록 없는 고객까지 분모(3,658)로 하면 98.25% — 조인 기준 유지. 데이터셋 백업 .bak.20261019f."
+ },
+ {
+  "id": 45,
+  "target_name": "BIRD",
+  "db_id": "debit_card_specializing",
+  "question_id": "1529",
+  "reason": "gold 조인 중복: transactions_1k 를 yearmonth 와 CustomerID 로 조인해 거래 8건이 20개월 기록과 곱해짐 → 총 지출 3,437.01 이 20배(68,740.22). 1월 값도 1월 거래가 없는데 3,437.01.",
+  "evidence": "총 지출은 SUM(price)=3,437.01. 'January 2012' 는 거래 기준이면 0(거래는 모두 2012-08), evidence 의 '201201' 을 yearmonth 소비량으로 읽으면 67,156.94 — 해석 갈림. pred(run 512)는 amount(수량) 합 148 로 컬럼 오류. gold 미정정 — 2026-10-19 사용자."
+ },
+ {
+  "id": 46,
+  "target_name": "BIRD",
+  "db_id": "debit_card_specializing",
+  "question_id": "1500",
+  "reason": "gold 가 상품 설명 목록을 DISTINCT 없이 976행(서로 다른 값 27개) 반환 — 같은 종류의 17(qid 1506)은 gold 가 DISTINCT.",
+  "evidence": "gold 정정(2026-10-19 사용자): SELECT DISTINCT → 27행. 규칙 57(분류 컬럼 단일 조회 DISTINCT)과 같은 기준. 데이터셋 백업 .bak.20261019g."
+ },
+ {
+  "id": 47,
+  "target_name": "BIRD",
+  "db_id": "debit_card_specializing",
+  "question_id": "1505",
+  "reason": "gold 가 고객이 아니라 월 기록을 셈: 'Among the customers who paid in euro, how many of them …' 인데 COUNT(*) = 1000 넘은 월 기록 2,730.",
+  "evidence": "gold 정정(2026-10-19 사용자): COUNT(DISTINCT T2.CustomerID) = 391(유로 고객 2,002 중) = pred(run 528). 11(qid 1490)과 같은 유형. 데이터셋 백업 .bak.20261019h."
+ },
+ {
+  "id": 48,
+  "target_name": "BIRD",
+  "db_id": "debit_card_specializing",
+  "question_id": "1524",
+  "reason": "질문·gold 가정 불일치: 'nationality of the customer' 인데 스키마에 고객 국적 컬럼이 없음. gold 는 거래한 주유소의 gasstations.Country 를 국적으로 간주.",
+  "evidence": "pred(run 529)는 customers.currency 반환. 주유소 국가=국적은 데이터셋 밖 가정이라 용어집으로 굳히지 않고 결함 표시만 — 2026-10-19 사용자."
+ },
+ {
+  "id": 49,
+  "target_name": "BIRD",
+  "db_id": "debit_card_specializing",
+  "question_id": "1531",
+  "reason": "gold 오류: ① 'top spending customer' 를 yearmonth 소비량(가스 사용량) 최대 기록(12459)으로 고름 — 지출은 transactions_1k.price ② 평균 단가를 SUM(price/amount)로 — evidence 는 Total(price)/Total(amount).",
+  "evidence": "gold 정정(2026-10-19 사용자): 거래 price 합계 1위 고객 19182, SUM(price)/SUM(amount)=24.28, CZK = pred(run 529). 데이터셋 백업 .bak.20261019i."
+ },
+ {
+  "id": 50,
+  "target_name": "BIRD",
+  "db_id": "debit_card_specializing",
+  "question_id": "1481",
+  "reason": "gold 오류: 'segment 별 소비가 가장 적은 고객'을 전체 yearmonth 최솟값 한 건(-582,092.875)으로 거름 → 그 1행만 남아 (0, 582092.875, -582092.875) 처럼 무의미한 차이. evidence 는 segment 별 최저 고객의 연간 평균.",
+  "evidence": "pred(run 529)는 segment 별 최솟값을 시도했으나 GroupingError 실행 오류. 질문이 복잡하고 gold 가 무의미해 미정정 — 2026-10-19 사용자."
+ },
+ {
+  "id": 51,
+  "target_name": "BIRD",
+  "db_id": "debit_card_specializing",
+  "question_id": "1482",
+  "reason": "gold 오류: 'Which of the three segments … biggest and lowest' 인데 segment 이름 없이 숫자 3개만 반환, 질문의 'paid in EUR' 조건 누락, 증가율 분모를 evidence(2013) 가 아닌 2012 로.",
+  "evidence": "pred(run 529)는 EUR 조건·evidence 식을 따라 segment·증가율 3행(SME 88.0, KAM 84.7, LAM 84.4) — 최대·최소 두 개만 고르지는 않음. 정답 모양 애매로 미정정 — 2026-10-19 사용자."
+ }
+]

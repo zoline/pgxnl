@@ -1,0 +1,43 @@
+pgxnl
+Copyright (c) 2026 pgxnl contributors
+Licensed under the MIT License (see LICENSE).
+
+This product includes or is derived from the following third-party works.
+
+1. PostgreSQL ANTLR4 grammar — antlr/grammars-v4 (sql/postgresql)
+   https://github.com/antlr/grammars-v4/tree/master/sql/postgresql
+   License: MIT. Copyright (c) 2021-2023 Oleksii Kovalov and contributors.
+   Used for: pgxnl/grammar/generated/* (Python code generated with ANTLR 4.13.2).
+   The original copyright headers are kept in the generated base files.
+
+2. ANTLR 4 Python runtime (antlr4-python3-runtime)
+   https://github.com/antlr/antlr4 — License: BSD-3-Clause.
+
+3. Mermaid — pgxnl/api/static/vendor/mermaid.min.js
+   https://github.com/mermaid-js/mermaid — License: MIT.
+   See pgxnl/api/static/vendor/mermaid.LICENSE.txt and mermaid.THIRD_PARTY_LICENSES.txt.
+
+4. jsPlumb Community Edition v2.15.6 — pgxnl/api/static/vendor/jsplumb.min.js
+   https://github.com/jsplumb/jsplumb — License: MIT OR GPL-2.0 (used under MIT).
+   See pgxnl/api/static/vendor/jsplumb.LICENSE.txt.
+
+5. BIRD benchmark (mini-dev, PostgreSQL edition) — data/
+   https://bird-bench.github.io/ , https://github.com/bird-bench/mini_dev
+   License: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/).
+   data/bird_minidev_pg.original.json is the original file; data/bird_minidev_pg.json
+   is a corrected derivative distributed under the same CC BY-SA 4.0 license.
+   Changes are listed in data/CHANGES.md. The BIRD authors state the benchmark is
+   intended "for research and healthy application only".
+   Citation: Li, J. et al. "Can LLM Already Serve as A Database Interface? A BIg Bench
+   for Large-Scale Database Grounded Text-to-SQLs." NeurIPS 2023.
+
+6. M-Schema schema representation (XiYan-SQL)
+   https://github.com/XGenerationLab/M-Schema
+   pgxnl follows the M-Schema text layout (e.g. 【Foreign keys】 a.x=b.y) in its own
+   implementation (pgxnl/agent/mschema.py). No M-Schema source code is included.
+
+Python dependencies (installed via pip, not bundled): FastAPI (MIT), Uvicorn (BSD-3-Clause),
+sse-starlette (BSD-3-Clause), asyncpg (Apache-2.0), SQLAlchemy (MIT), Pydantic (MIT),
+pydantic-settings (MIT), anthropic (MIT), openai (Apache-2.0), tenacity (Apache-2.0),
+bcrypt (Apache-2.0), cryptography (Apache-2.0 OR BSD-3-Clause), croniter (MIT),
+python-multipart (Apache-2.0), httpx (BSD-3-Clause), python-dotenv (BSD-3-Clause).
