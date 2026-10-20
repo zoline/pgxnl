@@ -29,7 +29,7 @@ from pgxnl.cache.schema import SchemaCache
 from pgxnl.cache.semantic import SemanticCache
 from pgxnl.governance.glossary import GlossaryStore
 from pgxnl.governance.rules import SqlRuleStore
-from pgxnl.llm.embeddings import create_embed_fn
+from pgxnl.llm.embedding_config import EmbeddingConfigStore, legacy_env_config
 from pgxnl.parsing.postgresql_parser import AntlrPostgresParser
 from pgxnl.settings import settings
 
@@ -58,6 +58,19 @@ async def _register_codecs(conn: asyncpg.Connection) -> None:
         )
 
 
+async def _migrate_legacy_embedding(store: EmbeddingConfigStore) -> None:
+    """임베딩 설정을 .env 에서 시스템 DB 로 옮긴 뒤(2026-10-20)의 기존 설치본용 — DB 에 설정이 없고
+    .env 에 예전 설정이 남아 있으면 한 번 옮긴다. 이후 .env 의 PGXNL_EMBEDDING_* 는 읽지 않는다."""
+    if await store.get() is not None:
+        return
+    legacy = legacy_env_config(settings)
+    if legacy is None:
+        return
+    cfg, key = legacy
+    await store.save(cfg, key)
+    logger.warning("임베딩 설정을 .env 에서 시스템 DB 로 옮겼습니다(model=%s). 이후 변경은 관리 화면 → 모델 설정 → 임베딩에서 합니다.", cfg.model)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
@@ -83,16 +96,18 @@ async def lifespan(app: FastAPI):
         state.eval_store = EvalStore(state.system_pool)
         state.llm_profile_store = LlmProfileStore(state.system_pool, settings.secret_key)
 
-        embed_fn = create_embed_fn(settings, state.llm)
-        state.embed_fn = embed_fn
+        state.embedding_store = EmbeddingConfigStore(state.system_pool, settings.secret_key)
+        await _migrate_legacy_embedding(state.embedding_store)
         if settings.cache_enabled:
             state.semantic_cache = SemanticCache(
-                state.system_pool, embed_fn,
+                state.system_pool, None,
                 trgm_threshold=settings.cache_similarity_threshold,
                 embedding_threshold=settings.cache_embedding_threshold,
                 embedding_enabled=settings.cache_embedding_enabled,
                 ttl_seconds=settings.cache_ttl_seconds,
             )
+
+        await state.load_embedding()  # 시맨틱 캐시를 만든 뒤에 — 거기에도 embed_fn 을 꽂는다
 
         api_key = await state.user_store.bootstrap_admin(_ADMIN_USERNAME, settings.admin_initial_password)
         if api_key:

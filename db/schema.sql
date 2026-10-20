@@ -350,6 +350,20 @@ CREATE TABLE IF NOT EXISTS pgxnl_llm_stage_config (
 );
 ALTER TABLE pgxnl_llm_stage_config ADD COLUMN IF NOT EXISTS disable_thinking BOOLEAN NOT NULL DEFAULT false;
 
+-- 임베딩 모델 설정(2026-10-20) — 행 하나(id=1). 전엔 .env(PGXNL_EMBEDDING_*, EMBEDDING_API_KEY)에
+-- 있었는데 첫 로그인 뒤 관리 화면에서 정하도록 옮겼다. 기동 시 이 행이 없고 .env 에 예전 설정이
+-- 있으면 한 번 옮긴다(pgxnl/llm/embedding_config.py). watsonx 는 등록 모델(profile_id)의 연결·자격을 빌린다.
+CREATE TABLE IF NOT EXISTS pgxnl_embedding_config (
+    id          INTEGER     PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    provider    TEXT        NOT NULL,              -- 'openai_compatible' | 'watsonx'
+    model       TEXT        NOT NULL,
+    base_url    TEXT,
+    verify_ssl  BOOLEAN     NOT NULL DEFAULT true,
+    profile_id  INTEGER     REFERENCES pgxnl_llm_profiles(id) ON DELETE SET NULL,
+    api_key_enc TEXT,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- 사용자별 단계 모델 개인 설정("내 설정" 탭) — pgxnl_user_credentials와 같은 오버라이드
 -- 패턴: 행이 있으면 그 모델을, 없으면 pgxnl_llm_stage_config(관리자 기본값)을 쓴다.
 CREATE TABLE IF NOT EXISTS pgxnl_user_llm_stage_config (

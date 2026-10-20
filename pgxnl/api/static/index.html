@@ -903,6 +903,10 @@ code{font-family:monospace;background:var(--panel2);padding:2px 4px;border-radiu
         <div class="section-title">대상 DB</div>
         <div class="card">
           <div class="card-title">대상 DB 추가</div>
+          <div id="tgtEmbedWarn" class="hidden" style="border-left:3px solid var(--warn);padding:8px 12px;margin-bottom:12px;font-size:var(--fs-md);">
+            <span style="color:var(--warn);">⚠ 임베딩 모델이 설정되지 않았습니다.</span>
+            대상 DB를 등록하기 전에 <a href="#" onclick="openEmbeddingSettings();return false;">모델 설정 → 임베딩</a>에서 먼저 설정하세요.
+            지금 등록하면 스키마 벡터가 만들어지지 않아 질문에 맞는 테이블을 찾는 정확도가 떨어집니다.</div>
         <!-- 항목별 입력이 기본(2026-10-02 사용자 요청) — DSN 한 줄에 비밀번호를 넣으면 @ : / # 같은
              특수문자가 DSN 구분자로 읽혀 접속이 깨진다. 사용자·비밀번호·DB 이름은 화면이 인코딩한다. -->
         <div class="form-row">
@@ -1477,6 +1481,7 @@ code{font-family:monospace;background:var(--panel2);padding:2px 4px;border-radiu
           <button class="subtab-btn active" data-group="mdl" data-tab="list" onclick="showSubtab('mdl','list')">등록된 모델<span class="cnt" id="mdlCnt"></span></button>
           <button class="subtab-btn" data-group="mdl" data-tab="add" id="mdlAddTabBtn" onclick="showSubtab('mdl','add')">모델 추가</button>
           <button class="subtab-btn" data-group="mdl" data-tab="stage" onclick="showSubtab('mdl','stage')">단계별 지정</button>
+          <button class="subtab-btn" data-group="mdl" data-tab="embed" onclick="showSubtab('mdl','embed')">임베딩</button>
           <button class="subtab-btn" data-group="mdl" data-tab="agent" onclick="showSubtab('mdl','agent')">에이전트 · 캐시</button>
         </div>
 
@@ -1550,6 +1555,41 @@ code{font-family:monospace;background:var(--panel2);padding:2px 4px;border-radiu
             <thead><tr><th style="width:38%;">단계</th><th>모델</th><th style="width:90px;">Thinking</th></tr></thead>
             <tbody id="stageAssignBody"></tbody>
           </table>
+        </div>
+        </div>
+
+        <!-- 2026-10-20: 임베딩을 .env 에서 시스템 DB 로 옮겼다 — 첫 로그인 뒤 여기서 정한다. -->
+        <div data-pane-group="mdl" data-pane="embed" class="hidden">
+        <p class="dim" style="font-size:var(--fs-md);margin-bottom:10px;">
+          질문에서 관련 테이블을 찾는 임베딩 모델입니다. 서버 전체가 하나를 씁니다.
+          <b>대상 DB를 등록하기 전에</b> 설정해야 등록할 때 스키마 벡터가 만들어집니다.
+          768차원 모델만 쓸 수 있고, 저장할 때 실제로 한 번 임베딩해 연결·차원을 확인합니다.</p>
+        <div id="embStatus" style="font-size:var(--fs-md);margin-bottom:10px;"></div>
+        <div class="card">
+        <div class="form-row">
+          <div class="form-group"><label>Provider</label>
+            <select id="embProvider" onchange="onEmbProviderChange()">
+              <option value="openai_compatible">OpenAI 호환 (vLLM/Ollama/OpenAI)</option>
+              <option value="watsonx">IBM watsonx.ai</option></select></div>
+          <div class="form-group" style="flex:1;"><label>Model</label>
+            <input type="text" id="embModel" placeholder="granite-embedding-278m"></div>
+        </div>
+        <div class="form-row" id="embOpenaiRow">
+          <div class="form-group" style="flex:1;"><label>Base URL</label>
+            <input type="text" id="embBaseUrl" class="wide" placeholder="http://192.168.0.100:8001/v1"></div>
+          <div class="form-group"><label>API Key</label>
+            <input type="password" id="embApiKey" autocomplete="off" placeholder="키를 안 보는 서버는 비워 둠"></div>
+          <div class="form-group"><label>SSL 검증</label>
+            <select id="embVerifySsl"><option value="true">검증함</option><option value="false">검증 안 함</option></select></div>
+        </div>
+        <div class="form-row hidden" id="embWatsonxRow">
+          <div class="form-group" style="flex:1;"><label>연결 정보로 쓸 watsonx 모델 (모델 추가에서 먼저 등록)</label>
+            <select id="embProfile"></select></div>
+        </div>
+        <div class="form-row">
+          <button class="btn-action secondary" onclick="testEmbedding()">연결 테스트</button>
+          <button class="btn-action" onclick="saveEmbedding()">저장</button></div>
+        <div id="embMsg" class="hidden"></div>
         </div>
         </div>
 
@@ -2269,6 +2309,7 @@ function analyze(){
 
 // ── 관리: 대상 DB ────────────────────────────────────────────────────────
 async function loadAdminTargets(){
+  fetchEmbeddingState().then(st=>$('tgtEmbedWarn').classList.toggle('hidden',!st||st.enabled));
   const r=await api('/api/admin/targets');
   if(!r.ok)return;
   const {targets}=await r.json();
@@ -2325,9 +2366,13 @@ async function saveTarget(){
     dsn=buildTgtDsn(v);
   }else dsn=$('tgtDsn').value.trim();
   if(!name||!dsn){showMsg('tgtMsg','이름과 접속 정보를 입력하세요.','err');return;}
+  const st=embState||await fetchEmbeddingState();
+  if(st&&!st.enabled&&!confirm('임베딩 모델이 설정되지 않았습니다.\n지금 등록하면 스키마 벡터가 만들어지지 않습니다(나중에 임베딩을 설정한 뒤 재색인 가능).\n\n그래도 등록할까요?'))return;
   const r=await api(`/api/admin/targets/${encodeURIComponent(name)}`,{method:'PUT',
     body:JSON.stringify({dialect:'postgresql',dsn})});
-  if(r.ok){showMsg('tgtMsg','등록되었습니다.','ok');
+  if(r.ok){const j=await r.json().catch(()=>({}));
+    showMsg('tgtMsg',j.schema_vector==='started'?'등록되었습니다. 스키마 벡터를 백그라운드로 만들고 있습니다.'
+      :'등록되었습니다. 임베딩이 설정되지 않아 스키마 벡터는 만들지 않았습니다.',j.schema_vector==='started'?'ok':'err',10000);
     for(const id of ['tgtName','tgtDsn','tgtHost','tgtDb','tgtUser','tgtPass','tgtOpts']) $(id).value='';
     $('tgtPort').value='5432'; previewTgtDsn();
     loadAdminTargets();loadTargets();}
@@ -4612,6 +4657,7 @@ async function loadSettings(){
   $('setCacheEnabled').value=String(s.cache.enabled);
   $('setCacheThreshold').value=s.cache.similarity_threshold;
   await loadModels();
+  await loadEmbedding();
   await loadStageConfig();
 }
 
@@ -4627,6 +4673,72 @@ async function saveSettings(){
     showMsg('setMsg','저장되었습니다.','ok');
     loadSettings();
   }else showMsg('setMsg','저장 실패','err');
+}
+
+// ── 관리: 임베딩 모델 (시스템 DB, 서버 전체 하나) ──────────────────────────
+let embState=null;
+
+function openEmbeddingSettings(){ showAdmin('settings'); showSubtab('mdl','embed'); }
+
+function onEmbProviderChange(){
+  const w=$('embProvider').value==='watsonx';
+  $('embOpenaiRow').classList.toggle('hidden',w);
+  $('embWatsonxRow').classList.toggle('hidden',!w);
+}
+
+async function fetchEmbeddingState(){
+  const r=await api('/api/admin/embedding');
+  embState=r.ok?await r.json():null;
+  return embState;
+}
+
+async function loadEmbedding(){
+  const st=await fetchEmbeddingState(); if(!st)return;
+  const c=st.config;
+  const wx=(mdlList||[]).filter(m=>m.provider==='watsonx');
+  $('embProfile').innerHTML=wx.length?wx.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')
+    :'<option value="">(등록된 watsonx 모델 없음)</option>';
+  if(c){
+    $('embProvider').value=c.provider; $('embModel').value=c.model;
+    $('embBaseUrl').value=c.base_url||''; $('embVerifySsl').value=String(c.verify_ssl);
+    if(c.profile_id) $('embProfile').value=String(c.profile_id);
+  }
+  $('embApiKey').value='';
+  $('embApiKey').placeholder=c&&c.has_api_key?'저장됨 — 바꿀 때만 입력':'키를 안 보는 서버는 비워 둠';
+  onEmbProviderChange();
+  $('embStatus').innerHTML=!c
+    ?'<span style="color:var(--warn);">⚠ 아직 설정되지 않았습니다 — 스키마 벡터·임베딩 유사도 기능이 꺼져 있습니다.</span>'
+    :st.enabled?`<span style="color:var(--ok);">사용 중</span> <span class="dim">· ${esc(c.model)} · ${st.dimensions}차원</span>`
+    :'<span style="color:var(--err);">설정은 있지만 불러오지 못했습니다 — 연결 테스트로 확인하세요.</span>';
+}
+
+function embBody(){
+  return {provider:$('embProvider').value, model:$('embModel').value.trim(),
+    base_url:$('embBaseUrl').value.trim()||null, api_key:$('embApiKey').value||null,
+    verify_ssl:$('embVerifySsl').value==='true', profile_id:parseInt($('embProfile').value,10)||null};
+}
+
+async function testEmbedding(){
+  showMsg('embMsg','테스트 중…','ok',60000);
+  const r=await api('/api/admin/embedding/test',{method:'POST',body:JSON.stringify(embBody())});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){showMsg('embMsg',j.detail||'테스트 실패','err',15000);return;}
+  if(j.ok) showMsg('embMsg',`연결 성공 — ${j.dimensions}차원, ${j.elapsed_ms}ms`,'ok',10000);
+  else showMsg('embMsg',j.error||'테스트 실패','err',20000);
+}
+
+async function saveEmbedding(){
+  showMsg('embMsg','연결 테스트 후 저장 중…','ok',60000);
+  const r=await api('/api/admin/embedding',{method:'PUT',body:JSON.stringify(embBody())});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){showMsg('embMsg',j.detail||'저장 실패','err',20000);return;}
+  await loadEmbedding();
+  const tr=await api('/api/admin/targets');
+  const n=tr.ok?(await tr.json()).targets.length:0;
+  if(j.model_changed&&n>0&&confirm(`임베딩 모델을 저장했습니다.\n\n등록된 대상 DB ${n}개의 스키마 벡터는 이전 모델 기준이거나 비어 있습니다. 지금 모델로 모두 다시 만들까요?\n(사용례 임베딩도 다시 계산하고 시맨틱 캐시의 임베딩은 지웁니다. 백그라운드로 진행됩니다.)`)){
+    const rr=await api('/api/admin/embedding/reindex',{method:'POST'});
+    showMsg('embMsg',rr.ok?'저장했습니다. 재색인을 시작했습니다 — 진행은 캐시 → 벡터 인덱스에서 확인하세요.':'저장했지만 재색인 시작에 실패했습니다.',rr.ok?'ok':'err',15000);
+  }else showMsg('embMsg',j.model_changed&&n>0?'저장했습니다. 재색인은 캐시 → 벡터 인덱스의 초기화로 대상별로 할 수 있습니다.':'저장했습니다.','ok',10000);
 }
 
 // ── 관리: 등록된 모델 / 단계별 지정 ────────────────────────────────────────

@@ -144,10 +144,12 @@ fi
 
 cat <<EOF
 
-설치 끝. 남은 일:
-  1) .env 의 LLM·임베딩 항목을 채운다 (README '검증된 모델 구성' 참고)
-  2) 서버 기동:  .venv/bin/uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100
+설치 끝. 남은 일 (자세한 절차: docs/INSTALL.md):
+  1) 서버 기동:  .venv/bin/uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100
      (첫 기동 때 db/schema.sql 이 적용된다)
-  3) 기준 정보:  .venv/bin/python tools/seed_import.py
-  4) 관리 화면 http://localhost:8100 → 대상 DB 등록 → LLM 프로필·단계 지정 → 스키마 벡터 색인
+  2) 기준 정보:  .venv/bin/python tools/seed_import.py
+  3) 관리 화면 http://localhost:8100 (pgxnl 계정)
+     → 모델 설정: 모델 추가 · 단계별 지정
+     → 모델 설정 → 임베딩  (대상 DB 등록 전에 — 그래야 스키마 벡터가 만들어진다)
+     → 대상 DB 등록
 EOF

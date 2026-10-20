@@ -476,9 +476,15 @@ top_k=10만으로도 질문과 무관한 테이블이 절반 가까이 그대로
 
 #### 임베딩 provider 선택: OpenAI 호환 vs watsonx
 
-**파일**: `pgxnl/llm/embeddings.py`, `pgxnl/llm/watsonx_client.py`
+**파일**: `pgxnl/llm/embedding_config.py`, `pgxnl/llm/watsonx_client.py`
 
-`PGXNL_EMBEDDING_PROVIDER`(`openai_compatible` 기본값 | `watsonx`)로 고릅니다.
+> **2026-10-20 변경:** 임베딩 설정은 `.env` 가 아니라 시스템 DB(`pgxnl_embedding_config`)에 두고
+> 관리 화면(모델 설정 → 임베딩)에서 정한다. 저장 전에 실제로 한 번 임베딩해 연결·768차원을 확인하고,
+> 모델이 바뀌면 모든 대상의 스키마 벡터·사용례 임베딩을 다시 만든다. watsonx 는 등록 모델(LLM 프로필)의
+> 연결·자격을 빌려 쓰므로 아래의 "채팅 세션 재사용"은 더 이상 하지 않는다(이력으로 남겨 둠).
+> 기존 설치본은 첫 기동 때 `.env` 값을 DB 로 한 번 옮긴다.
+
+(이력) `PGXNL_EMBEDDING_PROVIDER`(`openai_compatible` 기본값 | `watsonx`)로 골랐습니다.
 watsonx는 OpenAI 프로토콜을 안 쓰고 별도 토큰 발급 인증이 필요해(§5.6과 동일한
 이유) 전용 분기로 처리합니다. **LLM도 watsonx면 채팅에 쓰는 것과 같은
 `WatsonxClient`(이미 인증된 세션)를 그대로 재사용합니다** — `main.py`에서
@@ -562,9 +568,9 @@ DB별로 독립적으로 새 클라이언트를 만들면 매번 별도 로그�
 | `OpenAICompatibleClient` | `openai` / `ollama` | vLLM, Ollama 등. `finish_reason` 정규화 |
 | `WatsonxClient` | `watsonx` | IBM CPD 배포. 인증/토큰 발급은 §5.4 임베딩 provider 절 참고 |
 
-임베딩 팩토리(`create_embed_fn`)는 Schema RAG·문서 지식 레이어·하이브리드 캐시가
-공용으로 사용하는 텍스트 임베딩 함수를 반환합니다. `EMBEDDING_API_KEY`가 미설정이면
-관련 기능 전체가 비활성됩니다 (§2.1 원칙).
+임베딩 함수(`state.embed_fn`, `pgxnl/llm/embedding_config.py` 로 생성)는 Schema RAG·문서 지식
+레이어·하이브리드 캐시·사용례 순위가 공용으로 사용합니다. 임베딩 모델이 설정되지 않았으면
+None 이고 관련 기능 전체가 비활성됩니다 (§2.1 원칙).
 
 **겪은 문제와 교훈 (watsonx, 2026-08-20 실측)**:
 
@@ -1161,11 +1167,10 @@ prefix: `PGXNL_` (일부 예외).
 
 | 환경변수 | 기본값 | 설명 |
 |---|---|---|
-| `PGXNL_EMBEDDING_PROVIDER` | `openai_compatible` | `openai_compatible` \| `watsonx`. watsonx면 LLM과 세션 공유 (§5.4) |
-| `EMBEDDING_API_KEY` | — | `openai_compatible`일 때만 사용. `dummy`면 임베딩 관련 기능 전체 비활성 |
-| `PGXNL_EMBEDDING_BASE_URL` | `https://api.openai.com/v1` | 임베딩 서버 엔드포인트 (`openai_compatible` 전용, watsonx는 `PGXNL_LLM_BASE_URL` 재사용) |
-| `PGXNL_EMBEDDING_MODEL` | `text-embedding-3-small` | 임베딩 모델명 |
-| `PGXNL_EMBEDDING_DIMENSIONS` | `1536` | 벡터 차원수. `db/schema.sql`의 `vector(N)`과 일치해야 함 |
+임베딩 모델(공급자·URL·모델·키)은 2026-10-20 부터 환경변수가 아니라 관리 화면 → 모델 설정 → 임베딩
+(시스템 DB `pgxnl_embedding_config`)에서 정한다. 차원은 768 고정(`db/schema.sql` 의 `vector(768)`).
+예전 `PGXNL_EMBEDDING_*`·`EMBEDDING_API_KEY` 는 기동 때 DB 에 설정이 없으면 한 번 옮기는 데에만 읽는다.
+
 | `PGXNL_SCHEMA_VECTOR_ENABLED` | `true` | Schema RAG 활성화 |
 | `PGXNL_SCHEMA_VECTOR_TOP_K` | `10` | 검색 반환 테이블 수 (1차 상한, recall 레버) |
 | `PGXNL_SCHEMA_VECTOR_SCORE_MARGIN` | `0.05` | 1위 후보 점수 대비 이 마진 밖인 후보 컷오프 (2차, precision 레버). `0`이면 비활성. 임베딩 모델 바꾸면 재검증 필요 (§5.4) |

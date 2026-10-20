@@ -43,6 +43,11 @@ class SemanticCache:
         self._embedding_enabled = embedding_enabled and embed_fn is not None
         self._ttl = ttl_seconds
 
+    def set_embed_fn(self, embed_fn: EmbedFn | None, embedding_enabled: bool) -> None:
+        """관리 화면에서 임베딩 모델을 바꾸면 재기동 없이 갈아 끼운다(routes_admin 임베딩 설정)."""
+        self._embed_fn = embed_fn
+        self._embedding_enabled = embedding_enabled and embed_fn is not None
+
     async def lookup(self, question: str, target_db: str, schema: str = "public") -> CacheEntry | None:
         """schema: 같은 target_db 안에서도 스키마가 다르면 같은 질문이 다른 정답으로
         이어질 수 있어(예: BIRD처럼 db_id별 스키마가 갈리는 경우) 캐시 키에 포함한다

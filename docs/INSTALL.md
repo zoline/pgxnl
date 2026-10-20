@@ -150,7 +150,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 - 같은 이름의 DB 가 이미 있으면 만들지 않고 그대로 쓴다. pgxnl 테이블은 모두 `pgxnl_` 로 시작하므로
   다른 테이블과 섞여도 동작은 하지만, 전용 DB 를 권한다.
 - 기존 PG 설정(`postgresql.conf`, `pg_hba.conf`)은 건드리지 않는다. pg_stat_statements 가 필요하면 3.2 절.
-- 기존 운영 DB 를 **질의 대상**으로 쓰는 것은 별개다 — 5.4 절처럼 읽기 전용 role 을 만들어 등록한다.
+- 기존 운영 DB 를 **질의 대상**으로 쓰는 것은 별개다 — 5.5 절처럼 읽기 전용 role 을 만들어 등록한다.
 
 ### 3.1 새로 설치
 
@@ -223,7 +223,8 @@ scripts/install.sh --install-pg        # PG 가 이미 있으면 --install-pg �
 
 ### 4.1 `.env` 채우기
 
-`install.sh` 가 DB·비밀 값은 채워 두므로, LLM·임베딩 부분만 고친다. 예시 구성 기준:
+`install.sh` 가 DB·비밀 값은 채워 두므로, LLM 기본값과 링킹 값만 확인한다. 예시 구성 기준:
+**임베딩 모델은 `.env` 에 없다** — 첫 로그인 뒤 관리 화면에서 정한다(5.4 절).
 
 ```bash
 # ── LLM (.env 값은 기본·대체용. 실제 단계별 모델은 관리 화면 5.3 절에서 정한다) ──
@@ -232,13 +233,6 @@ PGXNL_LLM_MODEL=qwen3.8-27b
 PGXNL_LLM_BASE_URL=http://192.168.0.100:8000/v1
 PGXNL_LLM_MAX_TOKENS=4096
 OPENAI_API_KEY=dummy                          # openai 공급자는 이 키를 읽는다. vLLM 이면 아무 값
-
-# ── 임베딩 (관리 화면에 없음 — .env 에서만 정한다) ──
-PGXNL_EMBEDDING_PROVIDER=openai_compatible
-EMBEDDING_API_KEY=local-vllm                  # 비우거나 'dummy' 면 임베딩 기능이 꺼진다 — vLLM 이면 그 밖의 아무 값
-PGXNL_EMBEDDING_BASE_URL=http://192.168.0.100:8001/v1
-PGXNL_EMBEDDING_MODEL=granite-embedding-278m
-PGXNL_EMBEDDING_DIMENSIONS=768
 
 # ── 스키마 링킹 (BIRD 평가 기준 값) ──
 PGXNL_SCHEMA_VECTOR_ENABLED=true
@@ -255,7 +249,6 @@ PGXNL_TABLE_SELECT_CANDIDATE_MARGIN=0.15
 | `PGXNL_SYSTEM_PG_DSN` | 시스템 DB. install.sh 가 채움 |
 | `PGXNL_SECRET_KEY` | 저장되는 대상 DB 비밀번호·API 키를 암호화하는 키. **설치 뒤 바꾸면 저장된 값을 못 푼다** |
 | `PGXNL_ADMIN_INITIAL_PASSWORD` | 관리자 `pgxnl` 계정의 첫 비밀번호. 첫 기동 때만 쓰임 |
-| `EMBEDDING_API_KEY` | 비어 있거나 `dummy` 면 임베딩 의존 기능(스키마 벡터·시맨틱 캐시 임베딩) 전체가 꺼진다 |
 | `PGXNL_SCHEMA_VECTOR_SCORE_MARGIN` | 1위 테이블 점수 대비 이 차이 이내만 후보로. 임베딩 모델을 바꾸면 재조정 |
 | `PGXNL_TABLE_SELECT_ENABLED` | 임베딩 후보에서 LLM 이 테이블을 다시 고름. 질문당 LLM 호출 1회 추가 |
 | `PGXNL_ENRICHMENT_ENABLED` | 질문 보강(모호성 판단·재작성). 기본 꺼짐 |
@@ -263,31 +256,7 @@ PGXNL_TABLE_SELECT_CANDIDATE_MARGIN=0.15
 | `PGXNL_AGENT_MAX_ITERATIONS` | ReAct 루프 최대 반복 |
 | `PGXNL_API_PORT` | 기본 8100 |
 
-### 4.2 임베딩 모델
-
-임베딩은 관리 화면(모델 설정)에서 정하지 않는다 — **`.env` 에서만** 정하고, 바꾸면 재기동한다.
-채팅 LLM 과 달리 단계별 지정이 없고 서버 전체가 하나를 쓴다.
-
-| 공급자 | `.env` |
-|---|---|
-| vLLM·Ollama 등 OpenAI 호환 (예시 구성) | `PGXNL_EMBEDDING_PROVIDER=openai_compatible`<br>`PGXNL_EMBEDDING_BASE_URL=http://192.168.0.100:8001/v1`<br>`PGXNL_EMBEDDING_MODEL=granite-embedding-278m`<br>`EMBEDDING_API_KEY=local-vllm` (빈 값·`dummy` 제외 아무 값) |
-| OpenAI | `PGXNL_EMBEDDING_PROVIDER=openai_compatible`<br>`PGXNL_EMBEDDING_BASE_URL=https://api.openai.com/v1`<br>`PGXNL_EMBEDDING_MODEL=text-embedding-3-small`<br>`EMBEDDING_API_KEY=<OpenAI 키>` — OpenAI 에만 `dimensions=768` 을 보내 768 로 잘라 받는다 |
-| IBM watsonx | `PGXNL_EMBEDDING_PROVIDER=watsonx`, `PGXNL_EMBEDDING_MODEL=<watsonx 임베딩 모델 id>`<br>인증은 `.env` 의 watsonx 항목(`WATSONX_API_KEY`, `PGXNL_WATSONX_PROJECT_ID` 등)과 `PGXNL_LLM_BASE_URL` 을 쓴다 |
-
-지켜야 할 것:
-- **차원은 768.** 시스템 DB 의 `vector(768)` 열에 들어간다. OpenAI 호환 서버(vLLM 등)에는 차원 지정을
-  보내지 않으므로 모델 자체가 768 을 내야 한다(granite-embedding-278m, nomic-embed-text 등).
-  다른 차원 모델은 8 절 "expected 768 dimensions" 항목을 본다.
-- **`EMBEDDING_API_KEY` 를 비우거나 `dummy` 로 두면 임베딩이 꺼진다** — 오류 없이 스키마 벡터만 비게 된다.
-- 임베딩 서버는 HTTP 또는 정식 인증서의 HTTPS 를 쓴다. 채팅 LLM 프로필과 달리 "SSL 검증 안 함" 옵션이 없다.
-- **임베딩 모델을 바꾸면 기존 벡터와 섞이지 않게 반드시 다시 색인한다**(5.5 절 초기화). 점수 분포도
-  모델마다 달라 `PGXNL_SCHEMA_VECTOR_SCORE_MARGIN`(0.10)·`PGXNL_TABLE_SELECT_CANDIDATE_MARGIN`(0.15)
-  은 granite-embedding-278m 기준 값이다 — 다른 모델이면 재조정이 필요할 수 있다.
-
-확인: 기동 뒤 관리 → 시스템 정보에 임베딩 모델·차원이 나오고, 대상 DB 를 등록하면 로그에
-`[SchemaVector] <대상> 재구축 완료: N 테이블` 이 찍힌다.
-
-### 4.3 서비스로 등록 (선택)
+### 4.2 서비스로 등록 (선택)
 
 `/etc/systemd/system/pgxnl.service`
 ```ini
@@ -368,7 +337,39 @@ curl -s http://localhost:8100/healthz
 
 Qwen3 계열에서 thinking 을 켜면 단순한 판단도 수십 초가 걸리고, BIRD 정확도도 오히려 낮았다(실측).
 
-### 5.4 대상 DB 등록 — 관리 → 대상 DB
+### 5.4 임베딩 모델 — 관리 → 모델 설정 → 임베딩 (**대상 DB 등록 전에**)
+
+질문에서 관련 테이블을 찾는 임베딩 모델이다. 서버 전체가 하나를 쓰고, 설정은 시스템 DB 에 저장된다
+(API 키는 `PGXNL_SECRET_KEY` 로 암호화). **대상 DB 를 등록하기 전에 설정해야** 등록할 때 스키마 벡터가
+만들어진다. 설정하지 않은 채 대상 DB 화면을 열면 경고가 나오고, 등록하려 하면 한 번 더 묻는다.
+
+| 칸 | 예시 값 |
+|---|---|
+| Provider | OpenAI 호환 (vLLM/Ollama/OpenAI) |
+| Model | `granite-embedding-278m` (vLLM `--served-model-name` 과 같게) |
+| Base URL | `http://192.168.0.100:8001/v1` |
+| API Key | 비워 둠 — vLLM 처럼 키를 안 보는 서버. OpenAI 는 키 입력 |
+| SSL 검증 | HTTPS + 자체 서명 인증서면 "검증 안 함" |
+
+**연결 테스트** → `연결 성공 — 768차원` 을 확인하고 **저장**. 저장할 때도 한 번 임베딩해 보고, 실패하거나
+768차원이 아니면 저장하지 않는다.
+
+| 공급자 | 설정 |
+|---|---|
+| vLLM·Ollama (OpenAI 호환) | Base URL·Model. 키는 비워도 됨 |
+| OpenAI | Base URL `https://api.openai.com/v1`, Model `text-embedding-3-small`, 키 — OpenAI 에만 `dimensions=768` 을 보내 768 로 받는다 |
+| IBM watsonx | 연결·자격은 **모델 추가** 에 등록한 watsonx 모델에서 빌려 온다. 그 모델을 고르고 Model 에 임베딩 모델 id 를 넣는다 |
+
+지켜야 할 것:
+- **차원은 768.** 시스템 DB 의 `vector(768)` 열에 들어간다. vLLM 등에는 차원 지정을 보내지 않으므로 모델
+  자체가 768 을 내야 한다(granite-embedding-278m, nomic-embed-text 등).
+- **모델을 바꾸면** 저장 뒤 "등록된 대상 DB 의 벡터를 다시 만들까요?" 를 묻는다 — 예를 누르면 모든 대상의
+  스키마 벡터·사용례 임베딩을 새 모델로 다시 만들고 시맨틱 캐시의 임베딩은 지운다(백그라운드).
+  옛 모델 벡터와 새 모델 질문 벡터는 비교할 수 없으므로 반드시 다시 만든다.
+- 링킹 마진 `PGXNL_SCHEMA_VECTOR_SCORE_MARGIN`(0.10)·`PGXNL_TABLE_SELECT_CANDIDATE_MARGIN`(0.15) 은
+  granite-embedding-278m 기준 값이다 — 다른 모델이면 재조정이 필요할 수 있다.
+
+### 5.5 대상 DB 등록 — 관리 → 대상 DB
 
 대상 DB 에는 **읽기 전용 role** 을 쓴다. pgxnl 은 읽기 전용 트랜잭션으로만 실행하지만,
 권한에서도 막아 두는 것이 안전하다. BIRD 예시(6.1 절에서 DB 를 만든 뒤):
@@ -396,9 +397,9 @@ GRANT pg_read_all_stats TO pgxnl_reader;   -- pg_stat_statements 를 읽으려�
 | 호스트 / 포트 / DB 이름 | `localhost` / `5432` / `BIRD` |
 | 사용자 / 비밀번호 | `pgxnl_reader` / … |
 
-**등록** 을 누르면 스키마 벡터 색인이 백그라운드에서 자동으로 시작된다.
+**등록** 을 누르면 스키마 벡터 색인이 백그라운드에서 자동으로 시작된다(임베딩이 설정돼 있을 때).
 
-### 5.5 스키마 벡터 확인 — 관리 → 캐시 → 벡터 인덱스
+### 5.6 스키마 벡터 확인 — 관리 → 캐시 → 벡터 인덱스
 
 대상 DB 를 고르고 **조회** → 색인된 테이블 수가 실제 테이블 수와 같은지 본다(BIRD 75개).
 로그에는 `[SchemaVector] BIRD 재구축 완료: 75 테이블` 이 찍힌다.
@@ -407,7 +408,7 @@ GRANT pg_read_all_stats TO pgxnl_reader;   -- pg_stat_statements 를 읽으려�
   수가 모자라면 **초기화** 로 다시 만든다.
 - 대상 DB 의 테이블을 바꿨을 때도 초기화한다.
 
-### 5.6 첫 질의 — 분석 → Query
+### 5.7 첫 질의 — 분석 → Query
 
 대상 DB 와 스키마를 고르고 질문한다. 예(BIRD, california_schools):
 
@@ -433,7 +434,7 @@ GRANT pg_read_all_stats TO pgxnl_reader;   -- pg_stat_statements 를 읽으려�
    공식 덤프는 75개 테이블을 모두 `public` 에 넣는다. 스크립트는 적재 뒤 db_id 이름의 스키마
    11개(`card_games`, `california_schools`, …)로 옮기고, `frpm`·`schools` 의 고유 인덱스를 PK 로 올린다.
    pgxnl 평가는 db_id 를 스키마 이름으로 쓰므로 공식 안내(`psql -f`)대로 넣으면 평가가 안 된다.
-3. 5.4 절의 읽기 전용 role 을 만들고 대상 `BIRD` 로 등록 → 5.5 절로 색인 확인.
+3. 5.4 절의 임베딩이 설정돼 있는지 확인 → 5.5 절의 읽기 전용 role 을 만들고 대상 `BIRD` 로 등록 → 5.6 절로 색인 확인.
 
 ### 6.2 기준 정보 가져오기
 
@@ -507,9 +508,10 @@ GRANT pg_read_all_stats TO pgxnl_reader;   -- pg_stat_statements 를 읽으려�
 | 질의가 SQL 없이 끝나거나 도구 호출이 비어 있다 | vLLM `--tool-call-parser` 가 `qwen3_coder` 가 아니다(2.1 절). |
 | 단순한 단계도 수십 초 이상 걸린다 | 그 단계의 Thinking 이 켜져 있다(5.3 절). |
 | `Request timed out` (약 3분) | 한 호출 출력이 너무 길다. 예시 구성은 출력 약 19 tok/s 라 호출 상한 180초 ≈ 3천 토큰. LLM 서버가 멈췄다고 재기동하기 전에 vLLM `/metrics` 의 `num_requests_running`·`generation_tokens_total` 이 늘고 있는지 본다. |
-| 엉뚱한 테이블로 SQL 을 만든다 | 벡터 인덱스가 일부만 색인됐을 수 있다(5.5 절). 수를 확인하고 초기화. |
-| 스키마 벡터가 0 개, "SchemaVectorIndex 비활성" | `EMBEDDING_API_KEY` 가 비어 있거나 `dummy` 다 — 둘 다 "임베딩 안 씀"으로 처리된다. vLLM 이면 그 밖의 아무 값(예: `local-vllm`)을 넣고 재기동. |
-| 임베딩 저장 오류 `expected 768 dimensions` | 임베딩 모델 차원이 768 이 아니다. 768 모델을 쓰거나, `db/schema.sql` 의 `vector(768)` 두 곳과 `PGXNL_EMBEDDING_DIMENSIONS` 를 함께 바꾸고 벡터를 다시 만든다. |
+| 엉뚱한 테이블로 SQL 을 만든다 | 벡터 인덱스가 일부만 색인됐을 수 있다(5.6 절). 수를 확인하고 초기화. |
+| 스키마 벡터가 0 개, "SchemaVectorIndex 비활성" | 임베딩 모델이 설정되지 않았다(5.4 절). 설정·저장한 뒤 재색인을 "예" 로 하거나, 캐시 → 벡터 인덱스에서 대상별 **초기화**. |
+| 임베딩 저장 시 "이 모델은 N차원입니다" | 768차원 모델만 쓸 수 있다. 다른 차원이 꼭 필요하면 `db/schema.sql` 의 `vector(768)` 세 곳과 `pgxnl/llm/embedding_config.py` 의 `EMBEDDING_DIMENSIONS` 를 함께 바꾸고 벡터를 다시 만든다. |
+| 임베딩 연결 테스트 실패 | 오류 문구를 본다 — 404 면 Model 이 vLLM `--served-model-name` 과 다르다, 연결 거부면 Base URL·방화벽, SSL 오류면 "SSL 검증 안 함". |
 | 기동 로그에 확장 생성 권한 오류 | `vector`·`pg_trgm` 확장은 슈퍼유저가 만들어야 한다: `sudo -u postgres psql -d pgxnl -c "CREATE EXTENSION vector; CREATE EXTENSION pg_trgm;"` |
 | SQL 수집·JOIN 발견이 비어 있다 | 대상 DB 에 `pg_stat_statements` 가 없거나(3.2 절), 대상 role 에 `pg_read_all_stats` 가 없다. |
 | BIRD 평가 점수가 README 와 크게 다르다 | ① 대상 이름이 `BIRD` 인지 ② seed 를 가져왔는지 ③ 벡터 75개 색인 ④ 모델·단계별 Thinking 끔 ⑤ 동시 처리 수. 모델이 다르면 차이는 정상이다. |
@@ -529,6 +531,10 @@ git pull
 sudo systemctl restart pgxnl                 # 또는 uvicorn 재기동 — schema.sql 이 자동 적용된다
 .venv/bin/python tools/seed_import.py        # 새 기준 정보 추가(기존 항목은 유지)
 ```
+
+0.5 초기 판에서 올라오면 `.env` 의 임베딩 설정(`PGXNL_EMBEDDING_*`, `EMBEDDING_API_KEY`)은 첫 기동 때
+시스템 DB 로 한 번 옮겨지고(로그 "임베딩 설정을 .env 에서 시스템 DB 로 옮겼습니다"), 이후로는 읽지 않는다.
+확인한 뒤 `.env` 에서 지워도 된다.
 
 저장소의 기준 정보로 자기 환경의 같은 항목을 덮으려면 `--replace`. 직접 고친 항목이 있으면
 먼저 `tools/seed_export.py` 로 떠 두고 비교한다.

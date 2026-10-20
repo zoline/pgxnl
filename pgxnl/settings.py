@@ -46,17 +46,12 @@ class Settings(BaseSettings):
     watsonx_instance_id: str | None = None
 
     # Schema RAG / Embedding
-    # 768 = db/schema.sql의 vector(768) 컬럼과 일치해야 한다. OpenAI text-embedding-3-small은
-    # matryoshka 절단으로 768을 그대로 낼 수 있고, Ollama nomic-embed-text는 기본이 768이라
-    # dimensions 파라미터 자체를 무시한다(embeddings.py의 is_openai_hosted 분기 참고).
+    # 임베딩 모델은 2026-10-20 부터 시스템 DB(pgxnl_embedding_config)에서 관리 화면으로 정한다.
+    # 아래 embedding_* 와 EMBEDDING_API_KEY 는 **레거시** — 기동 때 DB 에 설정이 없으면 한 번 옮기는
+    # 데에만 읽는다(main._migrate_legacy_embedding). 새 설치에서는 .env 에 두지 않는다.
     embedding_base_url: str = "https://api.openai.com/v1"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 768
-    # 'openai_compatible' | 'watsonx'. watsonx는 OpenAI 프로토콜을 안 쓰고 별도 인증
-    # (토큰 발급)이 필요해 전용 분기로 처리한다(embeddings.py 참고). LLM도 watsonx면
-    # 채팅에 쓰는 것과 같은 WatsonxClient(이미 인증된 세션)를 그대로 재사용한다 —
-    # create_embed_fn을 대상 DB(orchestrator)마다 독립적으로 새로 호출하면 매번 별도
-    # 로그인(토큰 발급) 요청이 생겨 비효율적이라 공유한다(api/state.py의 embed_fn 참고).
     embedding_provider: str = "openai_compatible"
     schema_vector_enabled: bool = True
     schema_vector_top_k: int = 10
@@ -145,17 +140,8 @@ class Settings(BaseSettings):
     secret_key: str = Field(default="CHANGE_ME_32_BYTE_KEY")
     admin_initial_password: str = "passw0rd"
 
-    # 임베딩 활성화 판단 (별도 prefix, 기존 pgxrsa 관례 유지)
-    embedding_api_key: str = Field(default="dummy", alias="EMBEDDING_API_KEY")
-
-    @property
-    def embedding_enabled(self) -> bool:
-        """§2.1 필수/보조 원칙: 자격증명이 없으면 임베딩 의존 기능 전체 비활성.
-        watsonx는 EMBEDDING_API_KEY가 아니라 watsonx project_id/space_id로 판단한다
-        (실제 API 키/비밀번호 존재 여부는 WatsonxClient.embed() 호출 시점에 검증됨)."""
-        if self.embedding_provider == "watsonx":
-            return bool(self.watsonx_project_id or self.watsonx_space_id)
-        return bool(self.embedding_api_key) and self.embedding_api_key != "dummy"
+    # 레거시(위 embedding_* 참고)
+    embedding_api_key: str = Field(default="", alias="EMBEDDING_API_KEY")
 
 
 def persist_env_updates(updates: dict[str, Any]) -> None:

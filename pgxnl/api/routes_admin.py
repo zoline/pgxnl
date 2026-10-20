@@ -16,6 +16,16 @@ from pgxnl.governance.glossary_terms import diagnose, normalize_definition, veri
 
 logger = logging.getLogger(__name__)
 
+# 백그라운드 작업(벡터 재구축 등) 참조 보관 — create_task 결과를 버리면 실행 중에 GC 될 수 있다
+_background: set[asyncio.Task] = set()
+
+
+def _spawn(coro) -> asyncio.Task:
+    task = asyncio.create_task(coro)
+    _background.add(task)
+    task.add_done_callback(_background.discard)
+    return task
+
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
 
@@ -81,15 +91,19 @@ async def upsert_target(name: str, body: TargetBody):
 
     # 등록/DSN 변경 직후 스키마 임베딩을 자동으로 채워둔다 — 그래야 다음 질의부터
     # search_tables 도구 호출 없이도 임베딩 기반 스키마 컨텍스트를 바로 쓸 수 있다.
+    # 임베딩이 꺼져 있으면 'disabled' 를 돌려 화면이 "임베딩부터 설정" 을 안내하게 한다.
+    schema_vector = "disabled"
     try:
         orchestrator = await state.get_orchestrator(name)
         sv = orchestrator.schema_vector
         if sv is not None and sv.enabled:
-            asyncio.create_task(_rebuild_schema_vector(name, orchestrator, sv))
+            _spawn(_rebuild_schema_vector(name, orchestrator, sv))
+            schema_vector = "started"
     except Exception as exc:  # noqa: BLE001
         logger.warning("[SchemaVector] %s 등록 후 자동 재구축 시작 실패: %s", name, exc)
+        schema_vector = "failed"
 
-    return {"ok": True, "name": record.name, "dialect": record.dialect}
+    return {"ok": True, "name": record.name, "dialect": record.dialect, "schema_vector": schema_vector}
 
 
 @router.delete("/targets/{name}")
@@ -820,6 +834,137 @@ async def update_settings(body: SettingsUpdate):
     state.user_orchestrators.clear()
     updated = [*field_updates.keys(), *key_updates.keys()]
     return {"ok": True, "updated": updated}
+
+
+# ── 임베딩 모델 (시스템 DB pgxnl_embedding_config, 서버 전체가 하나) ──────────────
+class EmbeddingBody(BaseModel):
+    provider: str = "openai_compatible"
+    model: str
+    base_url: str | None = None
+    api_key: str | None = None      # 비우면 저장된 키 유지 — 조회 응답에는 절대 넣지 않는다
+    verify_ssl: bool = True
+    profile_id: int | None = None   # watsonx: 연결·자격을 빌려 올 등록 모델
+
+
+def _embedding_from_body(body: EmbeddingBody):
+    from pgxnl.llm.embedding_config import PROVIDERS, EmbeddingConfig
+
+    if body.provider not in PROVIDERS:
+        raise HTTPException(400, f"provider 는 {', '.join(PROVIDERS)} 중 하나입니다")
+    model = body.model.strip()
+    if not model:
+        raise HTTPException(400, "모델 이름을 입력하세요")
+    base_url = (body.base_url or "").strip() or None
+    if body.provider == "openai_compatible" and not base_url:
+        raise HTTPException(400, "Base URL 을 입력하세요 (예: http://192.168.0.100:8001/v1)")
+    if body.provider == "watsonx" and not body.profile_id:
+        raise HTTPException(400, "watsonx 임베딩은 연결 정보로 쓸 등록된 watsonx 모델을 고르세요")
+    return EmbeddingConfig(
+        provider=body.provider, model=model, base_url=base_url if body.provider == "openai_compatible" else None,
+        verify_ssl=body.verify_ssl, profile_id=body.profile_id if body.provider == "watsonx" else None,
+    )
+
+
+async def _probe_embedding(cfg, api_key: str | None) -> dict:
+    """설정으로 실제 한 번 임베딩해 본다 — 연결·인증·차원을 저장 전에 확인한다."""
+    import time
+
+    from pgxnl.api.state import state
+    from pgxnl.llm.embedding_config import EMBEDDING_DIMENSIONS
+
+    started = time.monotonic()
+    try:
+        fn = await state.build_embed_fn(cfg, api_key)
+        vec = await asyncio.wait_for(fn("pgxnl embedding test"), timeout=60)
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:400]}
+    ms = round((time.monotonic() - started) * 1000)
+    if len(vec) != EMBEDDING_DIMENSIONS:
+        return {"ok": False, "dimensions": len(vec), "elapsed_ms": ms,
+                "error": f"이 모델은 {len(vec)}차원입니다. pgxnl 은 {EMBEDDING_DIMENSIONS}차원 모델만 쓸 수 있습니다"
+                         f" (db/schema.sql 의 vector({EMBEDDING_DIMENSIONS}))."}
+    return {"ok": True, "dimensions": len(vec), "elapsed_ms": ms}
+
+
+@router.get("/embedding")
+async def get_embedding():
+    from pgxnl.api.state import state
+    from pgxnl.llm.embedding_config import EMBEDDING_DIMENSIONS
+
+    cfg = state.embedding_config
+    return {
+        "configured": cfg is not None,
+        "enabled": state.embed_fn is not None,
+        "dimensions": EMBEDDING_DIMENSIONS,
+        "config": None if cfg is None else {
+            "provider": cfg.provider, "model": cfg.model, "base_url": cfg.base_url,
+            "verify_ssl": cfg.verify_ssl, "profile_id": cfg.profile_id, "has_api_key": cfg.has_api_key,
+            "updated_at": cfg.updated_at.isoformat() if cfg.updated_at else None,
+        },
+    }
+
+
+@router.post("/embedding/test")
+async def test_embedding(body: EmbeddingBody):
+    return await _probe_embedding(_embedding_from_body(body), body.api_key or None)
+
+
+@router.put("/embedding")
+async def save_embedding(body: EmbeddingBody):
+    """연결 테스트를 통과해야 저장한다. 모델이 바뀌었으면 model_changed=true — 화면이 기존 벡터를
+    새 모델로 다시 만들지 묻는다(옛 모델 벡터와 새 모델 질문 벡터는 비교할 수 없다)."""
+    from pgxnl.api.state import state
+
+    store = _require(state.embedding_store, "시스템 DB 미연결")
+    cfg = _embedding_from_body(body)
+    probe = await _probe_embedding(cfg, body.api_key or None)
+    if not probe["ok"]:
+        raise HTTPException(400, f"연결 테스트 실패 — 저장하지 않았습니다. {probe['error']}")
+    before = await store.get()
+    await store.save(cfg, body.api_key or None)
+    await state.load_embedding()
+    return {"ok": True, "dimensions": probe["dimensions"], "model_changed": not cfg.same_model(before)}
+
+
+@router.post("/embedding/reindex")
+async def reindex_embeddings():
+    """모든 대상 DB 의 스키마 벡터를 지금 모델로 다시 만들고, 사용례 임베딩을 다시 계산하고,
+    시맨틱 캐시의 임베딩은 지운다(질문 문자열 유사도 검색은 그대로 동작한다). 백그라운드로 돈다."""
+    from pgxnl.api.state import state
+
+    if state.embed_fn is None:
+        raise HTTPException(400, "임베딩 모델이 설정되지 않았습니다")
+    store = _require(state.target_store, "시스템 DB 미연결")
+    names = [t.name for t in await store.list_targets()]
+    _spawn(_reindex_all(names))
+    return {"ok": True, "targets": names}
+
+
+async def _reindex_all(names: list[str]) -> None:
+    from pgxnl.api.state import state
+
+    pool = state.system_pool
+    await pool.execute("UPDATE pgxnl_cache SET embedding = NULL WHERE embedding IS NOT NULL")
+    for name in names:
+        try:
+            orchestrator = await state.get_orchestrator(name)
+            sv = orchestrator.schema_vector
+            if sv is not None and sv.enabled:
+                await sv.invalidate()
+                await _rebuild_schema_vector(name, orchestrator, sv)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[SchemaVector] %s 재색인 실패: %s", name, exc)
+    rows = await pool.fetch("SELECT id, question FROM pgxnl_verified_queries")
+    done = 0
+    for r in rows:
+        try:
+            vec = await state.embed_fn(r["question"])
+            await pool.execute("UPDATE pgxnl_verified_queries SET embedding = $1::vector WHERE id = $2",
+                               str(vec), r["id"])
+            done += 1
+        except Exception:  # noqa: BLE001 — 순위 재료일 뿐이라 실패하면 비워 둔다(어휘 유사도로 내려앉음)
+            await pool.execute("UPDATE pgxnl_verified_queries SET embedding = NULL WHERE id = $1", r["id"])
+    logger.info("[Embedding] 재색인 완료: 대상 %d개, 사용례 %d/%d건", len(names), done, len(rows))
 
 
 # ── 모델 설정 (단계별 LLM 등록부) ──────────────────────

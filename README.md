@@ -83,7 +83,7 @@ pip install -e ".[dev]"
 scripts/install.sh            # 자세한 옵션: scripts/install.sh --help
 
 # 2) 설정
-cp .env.example .env          # LLM·임베딩·시스템 DB DSN·SECRET_KEY·관리자 비밀번호를 채운다
+cp .env.example .env          # 시스템 DB DSN·SECRET_KEY·관리자 비밀번호를 채운다 (임베딩은 관리 화면에서)
 
 # 3) 실행 — 테이블 스키마(db/schema.sql)는 기동 시 자동 적용된다(idempotent)
 uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100
@@ -112,8 +112,8 @@ uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100
 > `PGXNL_ADMIN_INITIAL_PASSWORD`(기본 `passw0rd`). 스크립트로 설치했다면 이미 임의 값이다.
 > `.env`는 절대 커밋하지 않는다.
 
-이후 관리 화면에서: **대상 DB 등록** → **모델 등록·단계 지정**(react·summarize 등 단계별 LLM) →
-**스키마 벡터 색인** → 질의.
+이후 관리 화면에서: **모델 등록·단계 지정**(react·summarize 등 단계별 LLM) → **임베딩 모델 설정**
+(모델 설정 → 임베딩, **대상 DB 등록 전에**) → **대상 DB 등록**(스키마 벡터 자동 색인) → 질의.
 
 ---
 

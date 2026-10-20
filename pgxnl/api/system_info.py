@@ -22,6 +22,7 @@ from typing import Any
 import asyncpg
 
 from pgxnl import __version__
+from pgxnl.llm.embedding_config import EMBEDDING_DIMENSIONS
 
 PING_TIMEOUT = 3.0
 STATUS_TTL = 30.0
@@ -177,8 +178,6 @@ async def _all_vector_coverage(state) -> list[dict[str, Any]]:
 
 
 async def collect_system_info(state) -> dict[str, Any]:
-    from pgxnl.settings import settings
-
     system_db, targets, stages, llm, evals, vectors = await asyncio.gather(
         _system_db(state), _ping_all(state), _stages(state), _default_llm(state), _running_evals(state),
         _all_vector_coverage(state),
@@ -188,9 +187,11 @@ async def collect_system_info(state) -> dict[str, Any]:
         "targets": targets,
         "llm": {"default": llm, "stages": stages},
         "embedding": {
-            "enabled": state.embed_fn is not None, "provider": settings.embedding_provider,
-            "model": settings.embedding_model, "dimensions": settings.embedding_dimensions,
-            "base_url": settings.embedding_base_url,
+            "enabled": state.embed_fn is not None,
+            "provider": state.embedding_config.provider if state.embedding_config else None,
+            "model": state.embedding_config.model if state.embedding_config else None,
+            "dimensions": EMBEDDING_DIMENSIONS,
+            "base_url": state.embedding_config.base_url if state.embedding_config else None,
             "coverage": vectors,
         },
         "server": {

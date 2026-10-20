@@ -6,6 +6,7 @@ FastAPI lifespan(main.py)에서 초기화되고, 라우터/의존성에서 지�
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 
 import asyncpg
@@ -26,9 +27,17 @@ from pgxnl.governance.glossary import GlossaryStore
 from pgxnl.governance.rules import SqlRuleStore
 from pgxnl.governance.verified_queries import VerifiedQueryStore
 from pgxnl.llm.base import BaseLLMClient
+from pgxnl.llm.embedding_config import (
+    EmbeddingConfig,
+    EmbeddingConfigStore,
+    build_openai_embed_fn,
+    build_watsonx_embed_fn,
+)
 from pgxnl.llm.embeddings import EmbedFn
 from pgxnl.parsing.postgresql_parser import AntlrPostgresParser
 from pgxnl.settings import Settings, settings
+
+logger = logging.getLogger(__name__)
 
 
 def create_llm_client(s: Settings) -> BaseLLMClient:
@@ -106,6 +115,8 @@ class AppState:
     # create_embed_fn을 따로 호출하면 watsonx 등 세션 기반 provider에서 불필요한
     # 중복 로그인 세션이 생길 수 있어 여기서 공유한다.
     embed_fn: EmbedFn | None = None
+    embedding_store: EmbeddingConfigStore | None = None
+    embedding_config: EmbeddingConfig | None = None
     parser: AntlrPostgresParser | None = None
     orchestrators: dict[str, Orchestrator]
     # (user_id, target_name) -> 사용자 전용 자격증명으로 만든 Orchestrator
@@ -167,6 +178,36 @@ class AppState:
                 )
             overrides[stage] = self._model_llm_cache[cache_key]
         return overrides
+
+    async def build_embed_fn(self, cfg: EmbeddingConfig, api_key: str | None = None) -> EmbedFn:
+        """api_key: None 이면 저장된 키. watsonx 는 등록 모델의 연결·자격으로 클라이언트를 만든다
+        — 채팅에 쓰는 같은 프로필의 세션을 재사용하지는 않는다(CPD 계정당 세션 제한 주의)."""
+        if cfg.provider == "watsonx":
+            secrets = (await self.llm_profile_store.get_profile_secrets(cfg.profile_id)
+                       if cfg.profile_id and self.llm_profile_store else None)
+            if not secrets or secrets["provider"] != "watsonx":
+                raise ValueError("watsonx 임베딩은 연결 정보로 쓸 등록된 watsonx 모델을 골라야 합니다")
+            return build_watsonx_embed_fn(cfg, create_llm_client_from_profile(secrets))
+        if api_key is None:
+            api_key = await self.embedding_store.get_api_key() if self.embedding_store else ""
+        return build_openai_embed_fn(cfg, api_key)
+
+    async def load_embedding(self) -> None:
+        """시스템 DB 의 임베딩 설정으로 embed_fn 을 (다시) 만들고, 옛 함수를 물고 있는
+        시맨틱 캐시·Orchestrator 를 갈아 끼운다. 설정이 없거나 만들기 실패면 임베딩 기능이 꺼진다."""
+        cfg = await self.embedding_store.get() if self.embedding_store else None
+        fn = None
+        if cfg is not None:
+            try:
+                fn = await self.build_embed_fn(cfg)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("임베딩 설정을 불러오지 못해 임베딩 기능을 끕니다: %s", exc)
+        self.embedding_config = cfg
+        self.embed_fn = fn
+        if self.semantic_cache is not None:
+            self.semantic_cache.set_embed_fn(fn, settings.cache_embedding_enabled)
+        self.orchestrators.clear()
+        self.user_orchestrators.clear()
 
     def invalidate_llm_stage_config(self) -> None:
         """모델 등록/관리자 기본 단계 지정이 바뀐 뒤 호출 — 캐시된 클라이언트와, 그걸 이미
