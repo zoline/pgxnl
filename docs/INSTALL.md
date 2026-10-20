@@ -235,7 +235,7 @@ OPENAI_API_KEY=dummy                          # openai 공급자는 이 키를 �
 
 # ── 임베딩 (관리 화면에 없음 — .env 에서만 정한다) ──
 PGXNL_EMBEDDING_PROVIDER=openai_compatible
-EMBEDDING_API_KEY=dummy                       # vLLM 은 키를 안 보지만 비워 두면 임베딩 기능이 꺼진다
+EMBEDDING_API_KEY=local-vllm                  # 비우거나 'dummy' 면 임베딩 기능이 꺼진다 — vLLM 이면 그 밖의 아무 값
 PGXNL_EMBEDDING_BASE_URL=http://192.168.0.100:8001/v1
 PGXNL_EMBEDDING_MODEL=granite-embedding-278m
 PGXNL_EMBEDDING_DIMENSIONS=768
@@ -255,7 +255,7 @@ PGXNL_TABLE_SELECT_CANDIDATE_MARGIN=0.15
 | `PGXNL_SYSTEM_PG_DSN` | 시스템 DB. install.sh 가 채움 |
 | `PGXNL_SECRET_KEY` | 저장되는 대상 DB 비밀번호·API 키를 암호화하는 키. **설치 뒤 바꾸면 저장된 값을 못 푼다** |
 | `PGXNL_ADMIN_INITIAL_PASSWORD` | 관리자 `pgxnl` 계정의 첫 비밀번호. 첫 기동 때만 쓰임 |
-| `EMBEDDING_API_KEY` | 비어 있으면 임베딩 의존 기능(스키마 벡터·시맨틱 캐시 임베딩) 전체가 꺼진다 |
+| `EMBEDDING_API_KEY` | 비어 있거나 `dummy` 면 임베딩 의존 기능(스키마 벡터·시맨틱 캐시 임베딩) 전체가 꺼진다 |
 | `PGXNL_SCHEMA_VECTOR_SCORE_MARGIN` | 1위 테이블 점수 대비 이 차이 이내만 후보로. 임베딩 모델을 바꾸면 재조정 |
 | `PGXNL_TABLE_SELECT_ENABLED` | 임베딩 후보에서 LLM 이 테이블을 다시 고름. 질문당 LLM 호출 1회 추가 |
 | `PGXNL_ENRICHMENT_ENABLED` | 질문 보강(모호성 판단·재작성). 기본 꺼짐 |
@@ -263,7 +263,31 @@ PGXNL_TABLE_SELECT_CANDIDATE_MARGIN=0.15
 | `PGXNL_AGENT_MAX_ITERATIONS` | ReAct 루프 최대 반복 |
 | `PGXNL_API_PORT` | 기본 8100 |
 
-### 4.2 서비스로 등록 (선택)
+### 4.2 임베딩 모델
+
+임베딩은 관리 화면(모델 설정)에서 정하지 않는다 — **`.env` 에서만** 정하고, 바꾸면 재기동한다.
+채팅 LLM 과 달리 단계별 지정이 없고 서버 전체가 하나를 쓴다.
+
+| 공급자 | `.env` |
+|---|---|
+| vLLM·Ollama 등 OpenAI 호환 (예시 구성) | `PGXNL_EMBEDDING_PROVIDER=openai_compatible`<br>`PGXNL_EMBEDDING_BASE_URL=http://192.168.0.100:8001/v1`<br>`PGXNL_EMBEDDING_MODEL=granite-embedding-278m`<br>`EMBEDDING_API_KEY=local-vllm` (빈 값·`dummy` 제외 아무 값) |
+| OpenAI | `PGXNL_EMBEDDING_PROVIDER=openai_compatible`<br>`PGXNL_EMBEDDING_BASE_URL=https://api.openai.com/v1`<br>`PGXNL_EMBEDDING_MODEL=text-embedding-3-small`<br>`EMBEDDING_API_KEY=<OpenAI 키>` — OpenAI 에만 `dimensions=768` 을 보내 768 로 잘라 받는다 |
+| IBM watsonx | `PGXNL_EMBEDDING_PROVIDER=watsonx`, `PGXNL_EMBEDDING_MODEL=<watsonx 임베딩 모델 id>`<br>인증은 `.env` 의 watsonx 항목(`WATSONX_API_KEY`, `PGXNL_WATSONX_PROJECT_ID` 등)과 `PGXNL_LLM_BASE_URL` 을 쓴다 |
+
+지켜야 할 것:
+- **차원은 768.** 시스템 DB 의 `vector(768)` 열에 들어간다. OpenAI 호환 서버(vLLM 등)에는 차원 지정을
+  보내지 않으므로 모델 자체가 768 을 내야 한다(granite-embedding-278m, nomic-embed-text 등).
+  다른 차원 모델은 8 절 "expected 768 dimensions" 항목을 본다.
+- **`EMBEDDING_API_KEY` 를 비우거나 `dummy` 로 두면 임베딩이 꺼진다** — 오류 없이 스키마 벡터만 비게 된다.
+- 임베딩 서버는 HTTP 또는 정식 인증서의 HTTPS 를 쓴다. 채팅 LLM 프로필과 달리 "SSL 검증 안 함" 옵션이 없다.
+- **임베딩 모델을 바꾸면 기존 벡터와 섞이지 않게 반드시 다시 색인한다**(5.5 절 초기화). 점수 분포도
+  모델마다 달라 `PGXNL_SCHEMA_VECTOR_SCORE_MARGIN`(0.10)·`PGXNL_TABLE_SELECT_CANDIDATE_MARGIN`(0.15)
+  은 granite-embedding-278m 기준 값이다 — 다른 모델이면 재조정이 필요할 수 있다.
+
+확인: 기동 뒤 관리 → 시스템 정보에 임베딩 모델·차원이 나오고, 대상 DB 를 등록하면 로그에
+`[SchemaVector] <대상> 재구축 완료: N 테이블` 이 찍힌다.
+
+### 4.3 서비스로 등록 (선택)
 
 `/etc/systemd/system/pgxnl.service`
 ```ini
@@ -484,7 +508,7 @@ GRANT pg_read_all_stats TO pgxnl_reader;   -- pg_stat_statements 를 읽으려�
 | 단순한 단계도 수십 초 이상 걸린다 | 그 단계의 Thinking 이 켜져 있다(5.3 절). |
 | `Request timed out` (약 3분) | 한 호출 출력이 너무 길다. 예시 구성은 출력 약 19 tok/s 라 호출 상한 180초 ≈ 3천 토큰. LLM 서버가 멈췄다고 재기동하기 전에 vLLM `/metrics` 의 `num_requests_running`·`generation_tokens_total` 이 늘고 있는지 본다. |
 | 엉뚱한 테이블로 SQL 을 만든다 | 벡터 인덱스가 일부만 색인됐을 수 있다(5.5 절). 수를 확인하고 초기화. |
-| 스키마 벡터가 0 개, "SchemaVectorIndex 비활성" | `EMBEDDING_API_KEY` 가 비어 있다(vLLM 이면 `dummy`). |
+| 스키마 벡터가 0 개, "SchemaVectorIndex 비활성" | `EMBEDDING_API_KEY` 가 비어 있거나 `dummy` 다 — 둘 다 "임베딩 안 씀"으로 처리된다. vLLM 이면 그 밖의 아무 값(예: `local-vllm`)을 넣고 재기동. |
 | 임베딩 저장 오류 `expected 768 dimensions` | 임베딩 모델 차원이 768 이 아니다. 768 모델을 쓰거나, `db/schema.sql` 의 `vector(768)` 두 곳과 `PGXNL_EMBEDDING_DIMENSIONS` 를 함께 바꾸고 벡터를 다시 만든다. |
 | 기동 로그에 확장 생성 권한 오류 | `vector`·`pg_trgm` 확장은 슈퍼유저가 만들어야 한다: `sudo -u postgres psql -d pgxnl -c "CREATE EXTENSION vector; CREATE EXTENSION pg_trgm;"` |
 | SQL 수집·JOIN 발견이 비어 있다 | 대상 DB 에 `pg_stat_statements` 가 없거나(3.2 절), 대상 role 에 `pg_read_all_stats` 가 없다. |
