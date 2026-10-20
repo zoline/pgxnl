@@ -409,13 +409,16 @@ Qwen3 계열에서 thinking 을 켜면 단순한 판단도 수십 초가 걸리�
 
 ### 5.5 대상 DB 등록 — 관리 → 대상 DB
 
+대상 DB 에는 **읽기 전용 role** 을 쓴다. pgxnl 은 읽기 전용 트랜잭션으로만 실행하지만,
+권한에서도 막아 두는 것이 안전하다. 질의할 DB 가 이미 있으면 그 DB 에 읽기 전용 role 을 만들어 등록한다.
+
 #### 질의할 DB 가 아직 없으면
 
 둘 중 하나를 먼저 만든다.
 
 | 목적 | 방법 |
 |---|---|
-| BIRD 평가까지 해 보려면 | 6.1 절로 `BIRD` DB(약 1GB, 스키마 11개)를 만든다. 그 뒤 아래 BIRD 예시대로 등록 |
+| BIRD 평가까지 해 보려면 | 6.1 절로 `BIRD` DB(약 1GB, 스키마 11개)를 만들고 등록한다 — 이 절은 건너뛴다 |
 | 동작만 빨리 확인하려면 | 공개 샘플 DB **dvdrental**(DVD 대여점, 테이블 15개, 수 MB)을 복원한다 ↓ |
 
 dvdrental 샘플 DB 만들기 (출처: PostgreSQL Tutorial):
@@ -428,46 +431,28 @@ sudo -u postgres psql -d dvdrental -c "select count(*) from film"   # → 1000
 ```
 `postgres` 사용자가 현재 디렉터리의 파일을 읽을 수 있어야 한다(홈 디렉터리 밑이면 `/tmp` 로 옮겨서 실행).
 
-dvdrental 은 테이블이 `public` 스키마에 있다. 읽기 전용 role 권한:
+#### 읽기 전용 role 과 등록 (dvdrental 예시)
+
+dvdrental 은 테이블이 `public` 스키마에 있다:
 ```sql
 -- sudo -u postgres psql -d dvdrental
 CREATE ROLE pgxnl_reader LOGIN PASSWORD '<비밀번호>';     -- 이미 만들었으면 생략
 GRANT CONNECT ON DATABASE dvdrental TO pgxnl_reader;
 GRANT USAGE ON SCHEMA public TO pgxnl_reader;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO pgxnl_reader;
-```
-화면에서는 연결 이름 `dvdrental`, DB 이름 `dvdrental` 로 등록한다. BIRD 기준 정보(seed)는 이 대상에
-적용되지 않는다 — 규칙·용어집 없이 기본 동작만 본다.
-
-#### 읽기 전용 role 과 등록 (BIRD 예시)
-
-대상 DB 에는 **읽기 전용 role** 을 쓴다. pgxnl 은 읽기 전용 트랜잭션으로만 실행하지만,
-권한에서도 막아 두는 것이 안전하다. BIRD 예시(6.1 절에서 DB 를 만든 뒤):
-
-```sql
--- sudo -u postgres psql -d BIRD
-CREATE ROLE pgxnl_reader LOGIN PASSWORD '<비밀번호>';
-GRANT CONNECT ON DATABASE "BIRD" TO pgxnl_reader;
-DO $$ DECLARE s text; BEGIN
-  FOR s IN SELECT nspname FROM pg_namespace
-           WHERE nspname NOT IN ('pg_catalog','information_schema','public') AND nspname NOT LIKE 'pg_%'
-  LOOP
-    EXECUTE format('GRANT USAGE ON SCHEMA %I TO pgxnl_reader', s);
-    EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO pgxnl_reader', s);
-  END LOOP;
-END $$;
-GRANT pg_read_all_stats TO pgxnl_reader;   -- pg_stat_statements 를 읽으려면
+GRANT pg_read_all_stats TO pgxnl_reader;   -- SQL 수집·JOIN 발견용 pg_stat_statements 를 읽으려면(선택)
 ```
 
 화면에서:
 
 | 칸 | 값 |
 |---|---|
-| 연결 이름 | **`BIRD`** (BIRD 기준 정보가 이 이름으로 묶여 있다 — 6 절) |
-| 호스트 / 포트 / DB 이름 | `localhost` / `5432` / `BIRD` |
+| 연결 이름 | `dvdrental` (화면·기준 정보에서 이 대상을 부르는 이름) |
+| 호스트 / 포트 / DB 이름 | `localhost` / `5432` / `dvdrental` |
 | 사용자 / 비밀번호 | `pgxnl_reader` / … |
 
 **등록** 을 누르면 스키마 벡터 색인이 백그라운드에서 자동으로 시작된다(임베딩이 설정돼 있을 때).
+BIRD 기준 정보(seed)는 이 대상에 적용되지 않는다 — 규칙·용어집 없이 기본 동작만 본다.
 
 ### 5.6 스키마 벡터 확인 — 관리 → 캐시 → 벡터 인덱스
 
@@ -517,7 +502,32 @@ dvdrental 이면:
    공식 덤프는 75개 테이블을 모두 `public` 에 넣는다. 스크립트는 적재 뒤 db_id 이름의 스키마
    11개(`card_games`, `california_schools`, …)로 옮기고, `frpm`·`schools` 의 고유 인덱스를 PK 로 올린다.
    pgxnl 평가는 db_id 를 스키마 이름으로 쓰므로 공식 안내(`psql -f`)대로 넣으면 평가가 안 된다.
-3. 5.4 절의 임베딩이 설정돼 있는지 확인 → 5.5 절의 읽기 전용 role 을 만들고 대상 `BIRD` 로 등록 → 5.6 절로 색인 확인.
+3. 읽기 전용 role 을 만들고 대상 `BIRD` 로 등록한다. 5.4 절의 임베딩이 먼저 설정돼 있어야 한다.
+   BIRD 는 테이블이 db_id 스키마 11개에 있으므로 스키마마다 권한을 준다:
+   ```sql
+   -- sudo -u postgres psql -d BIRD
+   CREATE ROLE pgxnl_reader LOGIN PASSWORD '<비밀번호>';     -- 이미 만들었으면 생략
+   GRANT CONNECT ON DATABASE "BIRD" TO pgxnl_reader;
+   DO $$ DECLARE s text; BEGIN
+     FOR s IN SELECT nspname FROM pg_namespace
+              WHERE nspname NOT IN ('pg_catalog','information_schema','public') AND nspname NOT LIKE 'pg_%'
+     LOOP
+       EXECUTE format('GRANT USAGE ON SCHEMA %I TO pgxnl_reader', s);
+       EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO pgxnl_reader', s);
+     END LOOP;
+   END $$;
+   GRANT pg_read_all_stats TO pgxnl_reader;   -- pg_stat_statements 를 읽으려면
+   ```
+
+   화면(관리 → 대상 DB)에서:
+
+   | 칸 | 값 |
+   |---|---|
+   | 연결 이름 | **`BIRD`** — BIRD 기준 정보(규칙·용어집·gold 결함)가 이 이름으로 묶여 있다. 다른 이름이면 적용되지 않는다 |
+   | 호스트 / 포트 / DB 이름 | `localhost` / `5432` / `BIRD` |
+   | 사용자 / 비밀번호 | `pgxnl_reader` / … |
+
+   **등록** → 스키마 벡터가 자동으로 만들어진다. 5.6 절로 75개 테이블이 모두 색인됐는지 확인한다.
 
 ### 6.2 기준 정보 가져오기
 
