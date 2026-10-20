@@ -1157,7 +1157,7 @@ async def get_model_stage_config():
 class StageAssignBody(BaseModel):
     stage: str
     profile_id: int | None = None
-    disable_thinking: bool = False
+    disable_thinking: bool = True
 
 
 @router.put("/model-stage-config")

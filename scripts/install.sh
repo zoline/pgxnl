@@ -145,7 +145,7 @@ fi
 cat <<EOF
 
 설치 끝. 남은 일 (자세한 절차: docs/INSTALL.md):
-  1) 서버 기동:  .venv/bin/uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100
+  1) 서버 기동:  nohup .venv/bin/uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100 > pgxnl.log 2>&1 &
      (첫 기동 때 db/schema.sql 이 적용된다)
   2) 기준 정보:  .venv/bin/python tools/seed_import.py
   3) 관리 화면 http://localhost:8100 (pgxnl 계정)

@@ -310,13 +310,24 @@ journalctl -u pgxnl -f
 
 ### 5.1 기동
 
+백그라운드로 띄우고 로그는 파일로 남긴다(터미널을 닫아도 계속 돈다):
+
 ```bash
-.venv/bin/uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100
+nohup .venv/bin/uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100 > pgxnl.log 2>&1 &
+tail -f pgxnl.log            # 기동 로그 확인 (Ctrl+C 로 tail 만 빠져나온다)
 ```
+
+멈추거나 다시 띄울 때:
+```bash
+pkill -f "uvicorn pgxnl.main:app"     # 중지
+# 다시 띄우려면 위 nohup 명령을 다시 실행
+```
+
+계속 운영할 서버라면 4.2 절의 systemd 서비스로 등록하는 편이 낫다.
 
 첫 기동 때:
 - `db/schema.sql` 이 시스템 DB 에 적용된다(여러 번 실행해도 안전).
-- 관리자 계정 `pgxnl` 이 만들어지고, 로그에 API 키가 **한 번** 찍힌다:
+- 관리자 계정 `pgxnl` 이 만들어지고, 로그(`pgxnl.log`)에 API 키가 **한 번** 찍힌다:
   `admin 계정이 생성되었습니다. username=pgxnl api_key=…` — API 로 호출할 일이 있으면 적어 둔다.
 
 확인:
@@ -346,7 +357,7 @@ curl -s http://localhost:8100/healthz
 
 자체 서명 인증서와 thinking 설정은 `.env` 가 아니라 이 화면을 거쳐야만 전달된다.
 
-**② 단계별 지정** 탭 — 모든 단계에 위 모델을 지정하고 **Thinking 끔** 으로 둔다.
+**② 단계별 지정** 탭 — 모든 단계에 위 모델을 지정한다. **Thinking 은 기본이 끔**이므로 그대로 둔다.
 
 | 단계 | 하는 일 |
 |---|---|

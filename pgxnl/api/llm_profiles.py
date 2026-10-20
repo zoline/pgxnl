@@ -176,13 +176,14 @@ class LlmProfileStore:
         Qwen3 모델을 react(사고 필요)/enrich_detect(속도 중요)에서 다르게 쓸 수 있어야
         모델을 중복 등록할 필요가 없다(사용자 지적으로 프로필 속성에서 옮김)."""
         rows = await self._pool.fetch("SELECT stage, profile_id, disable_thinking FROM pgxnl_llm_stage_config")
-        config: dict[str, dict] = {s: {"profile_id": None, "disable_thinking": False} for s in STAGES}
+        # 아직 지정하지 않은 단계도 thinking 끔이 기본(2026-10-20) — 켜면 느리고 BIRD 정확도도 낮았다
+        config: dict[str, dict] = {s: {"profile_id": None, "disable_thinking": True} for s in STAGES}
         for r in rows:
             if r["stage"] in config:
                 config[r["stage"]] = {"profile_id": r["profile_id"], "disable_thinking": r["disable_thinking"]}
         return config
 
-    async def set_stage_profile(self, stage: str, profile_id: int | None, disable_thinking: bool = False) -> None:
+    async def set_stage_profile(self, stage: str, profile_id: int | None, disable_thinking: bool = True) -> None:
         if stage not in STAGES:
             raise ValueError(f"알 수 없는 단계: {stage}")
         await self._pool.execute(

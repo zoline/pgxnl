@@ -86,7 +86,7 @@ scripts/install.sh            # 자세한 옵션: scripts/install.sh --help
 cp .env.example .env          # 시스템 DB DSN·SECRET_KEY·관리자 비밀번호를 채운다 (임베딩은 관리 화면에서)
 
 # 3) 실행 — 테이블 스키마(db/schema.sql)는 기동 시 자동 적용된다(idempotent)
-uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100
+nohup .venv/bin/uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100 > pgxnl.log 2>&1 &
 ```
 
 브라우저에서 `http://<host>:8100` → 관리자 계정 **`pgxnl`** / `.env`의 `PGXNL_ADMIN_INITIAL_PASSWORD`로 로그인.

@@ -345,10 +345,12 @@ CREATE TABLE IF NOT EXISTS pgxnl_llm_stage_config (
     -- 어떻게 쓸지의 설정) — 켜면 vLLM에 chat_template_kwargs.enable_thinking=false를
     -- 보내 사고 과정을 건너뛴다. 간단한 모호성 판단(enrich_detect) 같은 단계에서 8분
     -- 넘게 걸리던 게 0.4초로 줄어드는 것까지 실측 확인했다. Qwen 계열이 아닌 모델에는
-    -- 무해하게 무시된다.
-    disable_thinking  BOOLEAN     NOT NULL DEFAULT false
+    -- 무해하게 무시된다. 기본값은 끔(true, 2026-10-20) — thinking 을 켜면 단순 판단도 수십 초가
+    -- 걸리고 BIRD 정확도도 오히려 낮았다(실측). 이미 있는 행의 값은 바꾸지 않는다.
+    disable_thinking  BOOLEAN     NOT NULL DEFAULT true
 );
-ALTER TABLE pgxnl_llm_stage_config ADD COLUMN IF NOT EXISTS disable_thinking BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE pgxnl_llm_stage_config ADD COLUMN IF NOT EXISTS disable_thinking BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE pgxnl_llm_stage_config ALTER COLUMN disable_thinking SET DEFAULT true;
 
 -- 임베딩 모델 설정(2026-10-20) — 행 하나(id=1). 전엔 .env(PGXNL_EMBEDDING_*, EMBEDDING_API_KEY)에
 -- 있었는데 첫 로그인 뒤 관리 화면에서 정하도록 옮겼다. 기동 시 이 행이 없고 .env 에 예전 설정이
