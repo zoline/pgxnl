@@ -422,14 +422,19 @@ Qwen3 계열에서 thinking 을 켜면 단순한 판단도 수십 초가 걸리�
 | 동작만 빨리 확인하려면 | 공개 샘플 DB **dvdrental**(DVD 대여점, 테이블 15개, 수 MB)을 복원한다 ↓ |
 
 dvdrental 샘플 DB 만들기 (출처: PostgreSQL Tutorial):
+`postgres` 사용자가 파일을 읽을 수 있어야 하므로 `/tmp` 에서 받고 푼다(홈 디렉터리 밑에서 하면
+`pg_restore` 가 권한 오류로 실패한다):
 ```bash
+cd /tmp
 curl -LO https://neon.com/postgresqltutorial/dvdrental.zip
-unzip dvdrental.zip                                   # → dvdrental.tar
+unzip -o dvdrental.zip                                # → /tmp/dvdrental.tar
+chmod 644 /tmp/dvdrental.tar
 sudo -u postgres createdb dvdrental
-sudo -u postgres pg_restore --no-owner -d dvdrental "$PWD/dvdrental.tar"
+sudo -u postgres pg_restore --no-owner -d dvdrental /tmp/dvdrental.tar
 sudo -u postgres psql -d dvdrental -c "select count(*) from film"   # → 1000
+rm -f /tmp/dvdrental.zip /tmp/dvdrental.tar          # 정리
+cd -                                                  # pgxnl 디렉터리로 돌아감
 ```
-`postgres` 사용자가 현재 디렉터리의 파일을 읽을 수 있어야 한다(홈 디렉터리 밑이면 `/tmp` 로 옮겨서 실행).
 
 #### 읽기 전용 role 과 등록 (dvdrental 예시)
 
