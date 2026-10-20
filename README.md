@@ -119,7 +119,8 @@ BIRD 평가를 하며 다듬은 기준 정보를 `seed/`에 JSON으로 둔다. �
 
 ```bash
 python tools/seed_import.py            # seed/*.json → 시스템 DB (기존 항목은 건너뜀, --replace 로 교체)
-python tools/seed_export.py            # 현재 시스템 DB → seed/*.json (갱신할 때)
+tools/sync_reference.sh                # 현재 시스템 DB → seed/*.json, 정정본 → data/CHANGES.md (갱신할 때)
+git config core.hooksPath .githooks    # (커밋하는 사람) 커밋할 때 위 갱신을 자동으로
 ```
 
 대상은 전역 항목과 `BIRD` 대상 항목이다(`--target` 으로 바꿀 수 있음). 규칙은 번호(id)를 유지해

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# 커밋할 때 기준 정보(seed/*.json)와 data/CHANGES.md 를 최신으로 맞춰 함께 커밋한다.
+#   켜기: git config core.hooksPath .githooks      끄기: git config --unset core.hooksPath
+# 시스템 DB 에 못 붙으면 seed 는 건너뛰고 커밋은 그대로 진행한다.
+# 공개 저장소라 seed·CHANGES 에 IP 주소가 들어가면 커밋을 막는다(예시용 주소는 허용).
+cd "$(git rev-parse --show-toplevel)" || exit 0
+PY=.venv/bin/python; [ -x "$PY" ] || PY=python3
+
+if timeout 60 "$PY" tools/seed_export.py >/dev/null 2>&1; then
+  git add -- seed/*.json
+else
+  echo "[pre-commit] seed 내보내기 실패(시스템 DB 연결 확인) — seed 는 갱신하지 않고 커밋한다" >&2
+fi
+if "$PY" tools/bird_changes.py >/dev/null; then
+  git add -- data/CHANGES.md
+fi
+
+ips=$(git diff --cached -U0 -- seed data | grep '^+' | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' \
+      | grep -vE '^(127\.0\.0\.1|0\.0\.0\.0|192\.168\.0\.100)$' | sort -u)
+if [ -n "$ips" ]; then
+  echo "[pre-commit] seed/data 변경에 IP 주소가 있다 — 공개 저장소라 커밋을 멈춘다:" >&2
+  echo "$ips" | sed 's/^/    /' >&2
+  echo "  해당 규칙·용어집·결함 문구를 고친 뒤 다시 커밋한다(정말 올려도 되면 git commit --no-verify)." >&2
+  exit 1
+fi
+exit 0

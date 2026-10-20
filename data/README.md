@@ -13,7 +13,9 @@
 | `CHANGES.md` | 원본 대비 정정 내역(문항별 전후) |
 
 정정 원칙은 `CHANGES.md` 머리말에 있다. 정정 사유와 근거(데이터 대조 결과)는 시스템 DB 의
-`pgxnl_eval_gold_defects` 에 있고, 기준 정보 내보내기(`tools/seed_export.py`)로 함께 배포된다.
+`pgxnl_eval_gold_defects` 에 있고, 기준 정보 내보내기(`tools/seed_export.py`)로 `seed/gold_defects.json` 에 함께 배포된다.
+`bird_minidev_pg.json` 을 고친 뒤에는 `python tools/bird_changes.py` 로 `CHANGES.md` 를 다시 만든다
+(`tools/sync_reference.sh` 가 둘 다 한다).
 
 이 폴더의 파일을 수정·재배포할 때도 CC BY-SA 4.0 과 위 출처 표기를 유지해야 한다.
 

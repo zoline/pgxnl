@@ -588,10 +588,18 @@ dvdrental 이면:
 | 감사 로그 조회·정리 | 관리 → 감사 로그 (보관 기간 지정 삭제) |
 | 상태 점검 | 관리 → 시스템 정보 (DB·pgvector·모델·단계 설정) |
 
-기준 정보를 고친 뒤 다른 환경으로 옮기려면:
+기준 정보(규칙·용어집·JOIN 그래프·gold 결함)를 고치거나 데이터셋(`data/bird_minidev_pg.json`)을 정정한 뒤
+저장소 파일로 맞추려면:
 ```bash
-.venv/bin/python tools/seed_export.py      # 시스템 DB → seed/*.json
+tools/sync_reference.sh      # 시스템 DB → seed/*.json, 정정본 → data/CHANGES.md
 ```
+
+저장소에 커밋하는 사람이면 git hook 을 켜 두면 커밋할 때마다 자동으로 맞춰 함께 커밋된다:
+```bash
+git config core.hooksPath .githooks        # 끄기: git config --unset core.hooksPath
+```
+- 시스템 DB 에 못 붙으면 seed 는 건너뛰고 커밋은 진행한다.
+- seed·CHANGES 변경에 IP 주소가 있으면 커밋을 멈춘다(공개 저장소 보호). 예시 주소 `192.168.0.100` 은 허용.
 
 백업: 시스템 DB 는 `pg_dump -Fc pgxnl` 로 뜬다. jsonb 열(규칙 정의 등)을 `::text` 로 떠서
 `::jsonb` 로 다시 넣는 식의 수작업 백업은 이중 인코딩으로 깨지므로 쓰지 않는다.
