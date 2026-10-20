@@ -998,7 +998,7 @@ class ModelBody(BaseModel):
     name: str | None = None
     base_url: str | None = None
     temperature: float = 0.0
-    max_tokens: int = 4096
+    max_tokens: int = 16384
     api_key: str | None = None
     watsonx_project_id: str | None = None
     watsonx_space_id: str | None = None

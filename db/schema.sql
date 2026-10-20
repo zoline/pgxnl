@@ -313,7 +313,7 @@ CREATE TABLE IF NOT EXISTS pgxnl_llm_profiles (
     model                 TEXT        NOT NULL,
     base_url              TEXT,
     temperature           REAL        NOT NULL DEFAULT 0.0,
-    max_tokens            INTEGER     NOT NULL DEFAULT 4096,
+    max_tokens            INTEGER     NOT NULL DEFAULT 16384,
     api_key_enc           TEXT,
     watsonx_project_id    TEXT,
     watsonx_space_id      TEXT,

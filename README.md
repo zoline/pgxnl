@@ -75,17 +75,13 @@ Anthropic·OpenAI·watsonx 공급자도 지원하지만, 위 구성만큼 반복
 > **[docs/INSTALL.md](docs/INSTALL.md)** 에 있다. 아래는 요약이다.
 
 ```bash
-git clone <this repo> pgxnl && cd pgxnl
-python3.12 -m venv .venv && . .venv/bin/activate
-pip install -e ".[dev]"
+git clone https://github.com/zoline/pgxnl.git && cd pgxnl
 
-# 1) 시스템 DB(role·DB) 준비 — PostgreSQL 설치부터 하려면 스크립트 사용
-scripts/install.sh            # 자세한 옵션: scripts/install.sh --help
+# 1) 설치 — 시스템 DB(role·DB·확장), .venv + 패키지, .env(DSN·SECRET_KEY·관리자 비밀번호) 를 만든다
+scripts/install.sh            # PostgreSQL 까지 설치하려면 --install-pg, 옵션: --help
+                              # .env 는 더 고칠 것이 없다 (조정은 선택 — docs/INSTALL.md 4.1)
 
-# 2) 설정
-cp .env.example .env          # 시스템 DB DSN·SECRET_KEY·관리자 비밀번호를 채운다 (임베딩은 관리 화면에서)
-
-# 3) 실행 — 테이블 스키마(db/schema.sql)는 기동 시 자동 적용된다(idempotent)
+# 2) 실행 — 테이블 스키마(db/schema.sql)는 기동 시 자동 적용된다(idempotent)
 nohup .venv/bin/uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100 > pgxnl.log 2>&1 &
 ```
 

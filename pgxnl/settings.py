@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     llm_model: str = "claude-sonnet-4-20250514"
     llm_base_url: str | None = None
     llm_temperature: float = 0.0
-    llm_max_tokens: int = 4096
+    llm_max_tokens: int = 16384
 
     # LLM: watsonx.ai 전용 (llm_provider="watsonx"일 때만 사용).
     # llm_base_url을 watsonx 엔드포인트로 재사용한다(예: https://us-south.ml.cloud.ibm.com,

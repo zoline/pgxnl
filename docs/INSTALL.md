@@ -245,20 +245,22 @@ scripts/install.sh --install-pg        # PG 가 이미 있으면 --install-pg �
 끝에 관리자 비밀번호가 **한 번** 출력된다. 같은 값이 `.env` 의
 `PGXNL_ADMIN_INITIAL_PASSWORD` 에 남는다(README "처음 설치할 때 비밀번호는 어디에 기록되나").
 
-### 4.1 `.env` 채우기
+### 4.1 `.env` 조정 (선택)
 
-`install.sh` 가 DB·비밀 값은 채워 두므로, LLM 기본값과 링킹 값만 확인한다. 예시 구성 기준:
-**임베딩 모델은 `.env` 에 없다** — 첫 로그인 뒤 관리 화면에서 정한다(5.4 절).
+**`install.sh` 로 설치했다면 고칠 것이 없다.** 필수 값(시스템 DB DSN, `PGXNL_SECRET_KEY`, 관리자 비밀번호)은
+스크립트가 채웠고, 스키마 링킹 값(BIRD 평가 기준)도 `.env.example` 에 이미 들어 있다.
+LLM·임베딩 모델은 첫 로그인 뒤 관리 화면에서 정한다(5.3·5.4 절).
+
+`.env` 를 열어 볼 때는 이런 경우다:
+- 스크립트 없이 `cp .env.example .env` 로 설치했다 → 위 필수 값 세 개를 직접 채운다.
+- 링킹·에이전트 값을 조정하고 싶다 → 아래 표. 고친 뒤 재기동해야 반영된다.
+- `.env` 의 LLM 항목(`PGXNL_LLM_*`)은 **대체용**이다. 관리 화면에서 단계에 모델을 지정하지 않았고 "기본" 모델도
+  없을 때만 쓰인다. 5.3 절대로 모든 단계를 지정하면 쓰이지 않으므로 기본값(anthropic, 키 없음) 그대로 둬도 된다.
+
+`.env.example` 에 들어 있는 링킹 값 — 이 줄을 지우면 코드 기본값(마진 0.05, 테이블 선택 꺼짐)으로 돌아가므로
+지우지 않는다:
 
 ```bash
-# ── LLM (.env 값은 기본·대체용. 실제 단계별 모델은 관리 화면 5.3 절에서 정한다) ──
-PGXNL_LLM_PROVIDER=openai
-PGXNL_LLM_MODEL=qwen3.8-27b
-PGXNL_LLM_BASE_URL=http://192.168.0.100:8000/v1
-PGXNL_LLM_MAX_TOKENS=4096
-OPENAI_API_KEY=dummy                          # openai 공급자는 이 키를 읽는다. vLLM 이면 아무 값
-
-# ── 스키마 링킹 (BIRD 평가 기준 값) ──
 PGXNL_SCHEMA_VECTOR_ENABLED=true
 PGXNL_SCHEMA_VECTOR_SCORE_MARGIN=0.10
 PGXNL_SCHEMA_VECTOR_KEEP_ALL_MAX_TABLES=3
@@ -270,9 +272,10 @@ PGXNL_TABLE_SELECT_CANDIDATE_MARGIN=0.15
 
 | 항목 | 설명 |
 |---|---|
-| `PGXNL_SYSTEM_PG_DSN` | 시스템 DB. install.sh 가 채움 |
-| `PGXNL_SECRET_KEY` | 저장되는 대상 DB 비밀번호·API 키를 암호화하는 키. **설치 뒤 바꾸면 저장된 값을 못 푼다** |
-| `PGXNL_ADMIN_INITIAL_PASSWORD` | 관리자 `pgxnl` 계정의 첫 비밀번호. 첫 기동 때만 쓰임 |
+| `PGXNL_SYSTEM_PG_DSN` | 시스템 DB. install.sh 가 채움 (필수) |
+| `PGXNL_SECRET_KEY` | 저장되는 대상 DB 비밀번호·API 키를 암호화하는 키 (필수). **설치 뒤 바꾸면 저장된 값을 못 푼다** |
+| `PGXNL_ADMIN_INITIAL_PASSWORD` | 관리자 `pgxnl` 계정의 첫 비밀번호. 첫 기동 때만 쓰임 (필수) |
+| `PGXNL_LLM_*` | 대체용 LLM — 단계 지정·기본 모델이 없을 때만 |
 | `PGXNL_SCHEMA_VECTOR_SCORE_MARGIN` | 1위 테이블 점수 대비 이 차이 이내만 후보로. 임베딩 모델을 바꾸면 재조정 |
 | `PGXNL_TABLE_SELECT_ENABLED` | 임베딩 후보에서 LLM 이 테이블을 다시 고름. 질문당 LLM 호출 1회 추가 |
 | `PGXNL_ENRICHMENT_ENABLED` | 질문 보강(모호성 판단·재작성). 기본 꺼짐 |
@@ -351,7 +354,7 @@ curl -s http://localhost:8100/healthz
 | Model | `qwen3.8-27b` (vLLM `--served-model-name` 과 같게) |
 | Base URL | `http://192.168.0.100:8000/v1` |
 | Temperature | `0` |
-| Max Tokens | `4096` |
+| Max Tokens | `16384` (출력 상한. 실제 출력은 보통 짧다) |
 | SSL 검증 | HTTPS + 자체 서명 인증서면 "검증 안 함" |
 | API Key | vLLM `--api-key` 로 준 값 (안 줬으면 아무 값) |
 
