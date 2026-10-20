@@ -32,3 +32,6 @@ __pycache__/
 .playwright-browsers/
 .playwright-mcp/
 .demo-shots/
+
+# BIRD 덤프 내려받는 기본 위치 (scripts/download_bird.sh)
+bird_data/

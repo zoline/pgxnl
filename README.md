@@ -135,16 +135,15 @@ python tools/seed_export.py            # 현재 시스템 DB → seed/*.json (�
 
 1. **대상 DB:** PostgreSQL DB 하나(예: `BIRD`, 약 1GB)에 BIRD 데이터베이스 11개를 **db_id 이름의 스키마**로
    적재한다(`card_games`, `california_schools`, … — 평가는 db_id 를 스키마 이름으로 쓴다).
-   덤프는 저장소에 없다(약 1GB, BIRD 배포물). [bird-bench/mini_dev](https://github.com/bird-bench/mini_dev)
-   README 의 "BIRD Mini-Dev Complete Package" 를 받아 압축을 풀면 `MINIDEV_postgresql/BIRD_dev.sql` 이 있다.
-   공식 안내(`psql -d BIRD -f BIRD_dev.sql`)대로 넣으면 테이블이 모두 `public` 에 들어가므로, 대신 아래
-   스크립트로 적재한다 — 적재 뒤 db_id 스키마로 옮기고 california_schools 의 `frpm`·`schools` 고유 인덱스를
-   PK 로 올린다.
+   덤프는 저장소에 없다(약 1GB, BIRD 배포물). 아래 스크립트로 공식 배포 패키지를 받아 PostgreSQL 덤프만 꺼내고,
+   적재 스크립트로 넣는다. 공식 안내(`psql -f`)대로 넣으면 테이블이 모두 `public` 에 들어가므로, 적재 스크립트가
+   db_id 스키마로 옮기고 california_schools 의 `frpm`·`schools` 고유 인덱스를 PK 로 올린다.
    ```bash
-   PGHOST=... PGUSER=... PGPASSWORD=... scripts/load_bird_db.sh --dump BIRD_dev.sql --db BIRD
+   scripts/download_bird.sh --dir /tmp/bird                                  # → /tmp/bird/BIRD_dev.sql
+   sudo -u postgres scripts/load_bird_db.sh --dump /tmp/bird/BIRD_dev.sql --db BIRD
    ```
    `pg_stat_statements` 확장을 켜 두면 JOIN 이력 발견이 동작한다(슈퍼유저 필요).
-2. 관리 화면에서 대상 이름 `BIRD`로 등록 → 스키마 벡터 전체 색인.
+2. 관리 화면에서 임베딩 모델을 먼저 설정하고(모델 설정 → 임베딩) 대상 이름 `BIRD`로 등록 → 스키마 벡터 자동 색인(75개).
 3. 기준 정보 가져오기(위 절).
 4. 관리 화면 → BIRD 평가 → 스키마 선택 → 실행. 채점은 두 가지:
    - **pgxnl EX:** 행 순서 무시, 중복은 셈, 숫자는 소수 5자리 반올림

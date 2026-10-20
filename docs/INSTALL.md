@@ -496,11 +496,20 @@ dvdrental 이면:
 
 ### 6.1 대상 DB 만들기
 
-1. [bird-bench/mini_dev](https://github.com/bird-bench/mini_dev) README 의 "BIRD Mini-Dev Complete Package"
-   를 받아 압축을 푼다 → `MINIDEV_postgresql/BIRD_dev.sql` (약 1GB).
+1. 덤프 내려받기 — BIRD 공식 배포 [bird-bench/mini_dev](https://github.com/bird-bench/mini_dev) 의 패키지
+   (`minidev.zip`, 약 800MB)를 받아 PostgreSQL 덤프만 꺼낸다:
+   ```bash
+   scripts/download_bird.sh --dir /tmp/bird        # → /tmp/bird/BIRD_dev.sql (약 1GB)
+   ```
+   - 여유 공간 약 2GB 가 필요하다(zip 은 다 꺼낸 뒤 지운다, 남기려면 `--keep-zip`).
+   - 끊기면 같은 명령을 다시 실행하면 이어 받는다.
+   - 끝에 SHA-256 을 pgxnl 평가에 쓴 덤프와 비교한다. 다르면 경고만 하고 계속한다(배포본이 바뀐 경우).
+   - `/tmp` 를 쓰는 이유: 다음 단계의 `postgres` 사용자가 읽을 수 있어야 한다.
+   - 직접 받으려면: `curl -LO https://bird-bench.oss-cn-beijing.aliyuncs.com/minidev.zip` 후
+     `unzip -j minidev.zip minidev/MINIDEV_postgresql/BIRD_dev.sql`.
 2. 적재 (DB 생성 권한이 있는 role 로, pg_stat_statements 확장까지 만들려면 슈퍼유저로):
    ```bash
-   sudo -u postgres scripts/load_bird_db.sh --dump /path/to/BIRD_dev.sql --db BIRD
+   sudo -u postgres scripts/load_bird_db.sh --dump /tmp/bird/BIRD_dev.sql --db BIRD
    ```
    `postgres` 사용자가 덤프 파일과 저장소를 읽을 수 있어야 한다(홈 디렉터리 밑이면 권한을 주거나
    다른 위치로 옮긴다). 슈퍼유저 대신 DB 생성 권한이 있는 role 로 해도 되며, 그때는
