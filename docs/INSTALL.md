@@ -65,16 +65,33 @@ pgxnl 은 OpenAI 호환 API 로 붙는다. 여기서는 vLLM 을 예로 든다.
 
 ### 2.1 채팅 LLM (:8000)
 
+검증한 구성(L40S 48GB 1장)에서 실제로 쓰는 옵션:
+
 ```bash
-vllm serve Qwen/Qwen3.8-27B-FP8 \
+vllm serve \
+  --model Qwen/Qwen3.8-27B-FP8 \
   --served-model-name qwen3.8-27b \
   --host 0.0.0.0 --port 8000 \
-  --max-model-len 32768 \
-  --gpu-memory-utilization 0.92 \
+  --gpu-memory-utilization 0.95 \
+  --max-model-len 131072 \
+  --max-num-seqs 4 \
+  --kv-cache-dtype fp8 \
+  --enable-prefix-caching \
   --enable-auto-tool-choice \
   --tool-call-parser qwen3_coder \
-  --reasoning-parser qwen3
+  --reasoning-parser qwen3 \
+  --generation-config vllm \
+  --api-key <임의의 키>
 ```
+
+| 옵션 | 뜻 |
+|---|---|
+| `--max-model-len 131072` | 최대 문맥. pgxnl 한 요청은 평균 입력 약 2.6천 토큰이라 여유가 크다 |
+| `--max-num-seqs 4` | 동시 처리 요청 수. BIRD 평가 동시 처리 수(1~3)와 질의가 겹쳐도 대기열이 짧다 |
+| `--kv-cache-dtype fp8` | KV 캐시를 FP8 로 — 48GB 한 장에 긴 문맥·동시 요청을 담기 위해 |
+| `--enable-prefix-caching` | 같은 시스템 프롬프트·스키마 앞부분을 재사용. 실측 적중률 약 59% |
+| `--generation-config vllm` | 모델 저장소의 기본 샘플링 값(generation_config.json) 대신 vLLM 기본값을 쓴다 — 온도 등은 pgxnl 이 요청마다 보낸다 |
+| `--api-key` | 이 키를 아는 클라이언트만 받는다. **pgxnl 의 모델 등록(5.3 절) API Key 칸에 같은 값을 넣는다** |
 
 반드시 지킬 것:
 
@@ -92,19 +109,26 @@ vllm serve Qwen/Qwen3.8-27B-FP8 \
 
 GPU 가 1장이면 임베딩은 CPU 로 따로 띄운다(vLLM CPU 이미지 `vllm/vllm-openai-cpu` 등).
 
+검증한 구성에서 실제로 쓰는 옵션:
+
 ```bash
-vllm serve ibm-granite/granite-embedding-278m-multilingual \
+vllm serve \
+  --model ibm-granite/granite-embedding-278m-multilingual \
   --served-model-name granite-embedding-278m \
+  --max-model-len 512 \
   --host 0.0.0.0 --port 8001
-# vLLM 버전에 따라 임베딩 모드 지정이 필요하다: --task embed (구버전) / --runner pooling (신버전)
 ```
+
+- `--max-model-len 512` — 이 모델(XLM-RoBERTa 계열)의 최대 입력 길이다.
+- `--served-model-name` 은 pgxnl 의 임베딩 설정(5.4 절) Model 칸에 넣는 이름이 된다.
+- 출력은 768차원이다(pgxnl 이 요구하는 차원).
 
 ### 2.3 확인
 
 pgxnl 서버에서:
 
 ```bash
-curl -s http://192.168.0.100:8000/v1/models | python3 -m json.tool | grep '"id"'
+curl -s http://192.168.0.100:8000/v1/models -H 'Authorization: Bearer <임의의 키>' | python3 -m json.tool | grep '"id"'
 curl -s http://192.168.0.100:8001/v1/embeddings -H 'Content-Type: application/json' \
   -d '{"model":"granite-embedding-278m","input":"hello"}' | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["data"][0]["embedding"]))'
 # → 768
@@ -318,7 +342,7 @@ curl -s http://localhost:8100/healthz
 | Temperature | `0` |
 | Max Tokens | `4096` |
 | SSL 검증 | HTTPS + 자체 서명 인증서면 "검증 안 함" |
-| API Key | vLLM 은 아무 값(`dummy`) |
+| API Key | vLLM `--api-key` 로 준 값 (안 줬으면 아무 값) |
 
 자체 서명 인증서와 thinking 설정은 `.env` 가 아니라 이 화면을 거쳐야만 전달된다.
 
