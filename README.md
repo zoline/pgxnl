@@ -71,6 +71,9 @@ Anthropic·OpenAI·watsonx 공급자도 지원하지만, 위 구성만큼 반복
 
 ## 설치
 
+> 전체 절차(LLM 서버, 기존 PostgreSQL 이 있을 때, 관리 화면 설정, BIRD 재현, 문제 해결)는
+> **[docs/INSTALL.md](docs/INSTALL.md)** 에 있다. 아래는 요약이다.
+
 ```bash
 git clone <this repo> pgxnl && cd pgxnl
 python3.12 -m venv .venv && . .venv/bin/activate
