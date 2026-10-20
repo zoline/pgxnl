@@ -86,10 +86,28 @@ cp .env.example .env          # LLM·임베딩·시스템 DB DSN·SECRET_KEY·�
 uvicorn pgxnl.main:app --host 0.0.0.0 --port 8100
 ```
 
-브라우저에서 `http://<host>:8100` → `admin` / `.env`의 `PGXNL_ADMIN_INITIAL_PASSWORD`로 로그인.
+브라우저에서 `http://<host>:8100` → 관리자 계정 **`pgxnl`** / `.env`의 `PGXNL_ADMIN_INITIAL_PASSWORD`로 로그인.
 
-> **반드시 바꿀 것:** `PGXNL_SECRET_KEY`(32바이트 임의 값 — 저장되는 DB 비밀번호·API 키 암호화에 쓰임)와
-> `PGXNL_ADMIN_INITIAL_PASSWORD`(기본 `passw0rd`). `.env`는 절대 커밋하지 않는다.
+### 처음 설치할 때 비밀번호는 어디에 기록되나
+
+`scripts/install.sh`를 쓰면 **`.env`**(권한 600, 소유자만 읽기)에 기록된다.
+
+| 비밀번호 | 기록 위치 | 화면 표시 |
+|---|---|---|
+| 관리자 (`pgxnl` 계정) | `.env`의 `PGXNL_ADMIN_INITIAL_PASSWORD=<임의 값>` | 설치 끝에 터미널에 한 번 출력 |
+| 시스템 DB role | `.env`의 `PGXNL_SYSTEM_PG_DSN` 안 | 출력 안 함 |
+| 암호화 키 | `.env`의 `PGXNL_SECRET_KEY` | 출력 안 함 |
+
+- 시스템 DB에는 관리자 비밀번호의 bcrypt 해시만 저장된다. 잊었으면 `.env`를 본다.
+- 관리자 계정은 서버 첫 기동 때 한 번 만들어지고, 그때 **API 키**가 서버 로그에 한 번만 찍힌다.
+- 이후 `.env`의 비밀번호를 바꿔도 계정에는 반영되지 않는다 — 관리 화면에서 바꾼다.
+  바꾼 뒤에도 `.env`에는 옛 평문 값이 남지만 더는 쓸 수 없다.
+- 스크립트 없이 `cp .env.example .env`로 설치하면 관리자 비밀번호는 기본값 `passw0rd`다.
+- `.env`가 이미 있으면 스크립트는 `--force-env` 없이 새 값을 만들지 않는다.
+
+> **반드시 바꿀 것:** `PGXNL_SECRET_KEY`(임의 값 — 저장되는 DB 비밀번호·API 키 암호화에 쓰임)와
+> `PGXNL_ADMIN_INITIAL_PASSWORD`(기본 `passw0rd`). 스크립트로 설치했다면 이미 임의 값이다.
+> `.env`는 절대 커밋하지 않는다.
 
 이후 관리 화면에서: **대상 DB 등록** → **모델 등록·단계 지정**(react·summarize 등 단계별 LLM) →
 **스키마 벡터 색인** → 질의.

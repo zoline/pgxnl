@@ -139,7 +139,7 @@ else
       -e "s|^PGXNL_ADMIN_INITIAL_PASSWORD=.*|PGXNL_ADMIN_INITIAL_PASSWORD=${ADMIN_PW}|" \
       .env.example > .env
   chmod 600 .env
-  echo "관리자 로그인: admin / ${ADMIN_PW}   (.env 에 기록됨 — 첫 로그인 후 바꿀 것)"
+  echo "관리자 로그인: pgxnl / ${ADMIN_PW}   (.env 에 기록됨 — 첫 로그인 후 바꿀 것)"
 fi
 
 cat <<EOF
