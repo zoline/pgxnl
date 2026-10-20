@@ -409,6 +409,38 @@ Qwen3 계열에서 thinking 을 켜면 단순한 판단도 수십 초가 걸리�
 
 ### 5.5 대상 DB 등록 — 관리 → 대상 DB
 
+#### 질의할 DB 가 아직 없으면
+
+둘 중 하나를 먼저 만든다.
+
+| 목적 | 방법 |
+|---|---|
+| BIRD 평가까지 해 보려면 | 6.1 절로 `BIRD` DB(약 1GB, 스키마 11개)를 만든다. 그 뒤 아래 BIRD 예시대로 등록 |
+| 동작만 빨리 확인하려면 | 공개 샘플 DB **dvdrental**(DVD 대여점, 테이블 15개, 수 MB)을 복원한다 ↓ |
+
+dvdrental 샘플 DB 만들기 (출처: PostgreSQL Tutorial):
+```bash
+curl -LO https://neon.com/postgresqltutorial/dvdrental.zip
+unzip dvdrental.zip                                   # → dvdrental.tar
+sudo -u postgres createdb dvdrental
+sudo -u postgres pg_restore --no-owner -d dvdrental "$PWD/dvdrental.tar"
+sudo -u postgres psql -d dvdrental -c "select count(*) from film"   # → 1000
+```
+`postgres` 사용자가 현재 디렉터리의 파일을 읽을 수 있어야 한다(홈 디렉터리 밑이면 `/tmp` 로 옮겨서 실행).
+
+dvdrental 은 테이블이 `public` 스키마에 있다. 읽기 전용 role 권한:
+```sql
+-- sudo -u postgres psql -d dvdrental
+CREATE ROLE pgxnl_reader LOGIN PASSWORD '<비밀번호>';     -- 이미 만들었으면 생략
+GRANT CONNECT ON DATABASE dvdrental TO pgxnl_reader;
+GRANT USAGE ON SCHEMA public TO pgxnl_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO pgxnl_reader;
+```
+화면에서는 연결 이름 `dvdrental`, DB 이름 `dvdrental` 로 등록한다. BIRD 기준 정보(seed)는 이 대상에
+적용되지 않는다 — 규칙·용어집 없이 기본 동작만 본다.
+
+#### 읽기 전용 role 과 등록 (BIRD 예시)
+
 대상 DB 에는 **읽기 전용 role** 을 쓴다. pgxnl 은 읽기 전용 트랜잭션으로만 실행하지만,
 권한에서도 막아 두는 것이 안전하다. BIRD 예시(6.1 절에서 DB 를 만든 뒤):
 
@@ -451,6 +483,10 @@ GRANT pg_read_all_stats TO pgxnl_reader;   -- pg_stat_statements 를 읽으려�
 대상 DB 와 스키마를 고르고 질문한다. 예(BIRD, california_schools):
 
 > What is the highest eligible free rate for K-12 students in the schools in Alameda County?
+
+dvdrental 이면:
+
+> 가장 많이 대여된 영화 5편은?
 
 생성된 SQL·실행 결과·답변이 나오면 설치 끝.
 
