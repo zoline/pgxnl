@@ -118,9 +118,11 @@ python tools/seed_export.py            # 현재 시스템 DB → seed/*.json (�
 
 1. **대상 DB:** PostgreSQL DB 하나(예: `BIRD`, 약 1GB)에 BIRD 데이터베이스 11개를 **db_id 이름의 스키마**로
    적재한다(`card_games`, `california_schools`, … — 평가는 db_id 를 스키마 이름으로 쓴다).
-   [bird-bench/mini_dev](https://github.com/bird-bench/mini_dev) 의 PostgreSQL 덤프(`BIRD_dev.sql`)를 받아
-   아래 스크립트로 적재한다. 공식 덤프는 테이블을 모두 `public` 에 넣으므로, 스크립트가 적재 뒤 db_id 스키마로
-   옮기고 california_schools 의 `frpm`·`schools` 고유 인덱스를 PK 로 올린다.
+   덤프는 저장소에 없다(약 1GB, BIRD 배포물). [bird-bench/mini_dev](https://github.com/bird-bench/mini_dev)
+   README 의 "BIRD Mini-Dev Complete Package" 를 받아 압축을 풀면 `MINIDEV_postgresql/BIRD_dev.sql` 이 있다.
+   공식 안내(`psql -d BIRD -f BIRD_dev.sql`)대로 넣으면 테이블이 모두 `public` 에 들어가므로, 대신 아래
+   스크립트로 적재한다 — 적재 뒤 db_id 스키마로 옮기고 california_schools 의 `frpm`·`schools` 고유 인덱스를
+   PK 로 올린다.
    ```bash
    PGHOST=... PGUSER=... PGPASSWORD=... scripts/load_bird_db.sh --dump BIRD_dev.sql --db BIRD
    ```
