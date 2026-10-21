@@ -62,7 +62,7 @@
  {
   "id": 26,
   "target_name": "BIRD",
-  "schema_name": null,
+  "schema_name": "california_schools",
   "term": "school",
   "table_name": "schools",
   "column_name": "school",
@@ -421,8 +421,8 @@
  },
  {
   "id": 97,
-  "target_name": null,
-  "schema_name": null,
+  "target_name": "BIRD",
+  "schema_name": "card_games",
   "term": "set of cards with <카드 이름>",
   "table_name": "cards",
   "column_name": "name",
@@ -529,8 +529,8 @@
  },
  {
   "id": 113,
-  "target_name": null,
-  "schema_name": null,
+  "target_name": "BIRD",
+  "schema_name": "debit_card_specializing",
   "term": "consumption",
   "table_name": "yearmonth",
   "column_name": "consumption",

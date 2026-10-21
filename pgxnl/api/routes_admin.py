@@ -770,6 +770,10 @@ async def get_settings():
             "sample_rows": settings.agent_sample_rows, "stats_top_n": settings.agent_stats_top_n,
             "max_context_tables": settings.agent_max_context_tables,
         },
+        "enrichment": {
+            "enabled": settings.enrichment_enabled,
+            "semantic_check_enabled": settings.enrichment_semantic_check_enabled,
+        },
         "cache": {
             "enabled": settings.cache_enabled, "similarity_threshold": settings.cache_similarity_threshold,
             "ttl_seconds": settings.cache_ttl_seconds,
@@ -793,6 +797,9 @@ class SettingsUpdate(BaseModel):
     agent_max_corrections: int | None = None
     cache_enabled: bool | None = None
     cache_similarity_threshold: float | None = None
+    # 질문 보강 — Orchestrator 를 만들 때 읽으므로 저장 뒤 orchestrators 를 비우면 바로 반영된다
+    enrichment_enabled: bool | None = None
+    enrichment_semantic_check_enabled: bool | None = None
     # 비어있으면 무시(기존 값 유지) — 입력한 경우에만 교체. 조회 응답에는 절대 포함되지 않는다.
     anthropic_api_key: str | None = None
     openai_api_key: str | None = None

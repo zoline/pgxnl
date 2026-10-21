@@ -278,7 +278,7 @@ PGXNL_TABLE_SELECT_CANDIDATE_MARGIN=0.15
 | `PGXNL_LLM_*` | 대체용 LLM — 단계 지정·기본 모델이 없을 때만 |
 | `PGXNL_SCHEMA_VECTOR_SCORE_MARGIN` | 1위 테이블 점수 대비 이 차이 이내만 후보로. 임베딩 모델을 바꾸면 재조정 |
 | `PGXNL_TABLE_SELECT_ENABLED` | 임베딩 후보에서 LLM 이 테이블을 다시 고름. 질문당 LLM 호출 1회 추가 |
-| `PGXNL_ENRICHMENT_ENABLED` | 질문 보강(모호성 판단·재작성). 기본 꺼짐 |
+| `PGXNL_ENRICHMENT_ENABLED` · `_SEMANTIC_CHECK_ENABLED` | 질문 보강(모호성 판단·재작성). `.env.example` 은 켬(BIRD 결과표 기준). 관리 화면 모델 설정 → 에이전트 · 캐시에서도 바꾼다 |
 | `PGXNL_VALIDATION_MAX_COST` | EXPLAIN 예상 비용이 이보다 크면 실행 거부 |
 | `PGXNL_AGENT_MAX_ITERATIONS` | ReAct 루프 최대 반복 |
 | `PGXNL_API_PORT` | 기본 8100 |
@@ -354,7 +354,7 @@ curl -s http://localhost:8100/healthz
 | Model | `qwen3.8-27b` (vLLM `--served-model-name` 과 같게) |
 | Base URL | `http://192.168.0.100:8000/v1` |
 | Temperature | `0` |
-| Max Tokens | `16384` (출력 상한. 실제 출력은 보통 짧다) |
+| Max Tokens | `8192` (출력 상한 — 검증 구성의 qwen3 값. 실제 출력은 보통 짧다) |
 | SSL 검증 | HTTPS + 자체 서명 인증서면 "검증 안 함" |
 | API Key | vLLM `--api-key` 로 준 값 (안 줬으면 아무 값) |
 
@@ -635,12 +635,25 @@ git config core.hooksPath .githooks        # 끄기: git config --unset core.hoo
 git pull
 .venv/bin/pip install -e ".[dev]"
 sudo systemctl restart pgxnl                 # 또는 uvicorn 재기동 — schema.sql 이 자동 적용된다
-.venv/bin/python tools/seed_import.py        # 새 기준 정보 추가(기존 항목은 유지)
+.venv/bin/python tools/seed_import.py        # 새 기준 정보 추가, 바뀐 항목은 '내용 다름' 으로 알림
 ```
 
 0.5 초기 판에서 올라오면 `.env` 의 임베딩 설정(`PGXNL_EMBEDDING_*`, `EMBEDDING_API_KEY`)은 첫 기동 때
 시스템 DB 로 한 번 옮겨지고(로그 "임베딩 설정을 .env 에서 시스템 DB 로 옮겼습니다"), 이후로는 읽지 않는다.
 확인한 뒤 `.env` 에서 지워도 된다.
 
-저장소의 기준 정보로 자기 환경의 같은 항목을 덮으려면 `--replace`. 직접 고친 항목이 있으면
-먼저 `tools/seed_export.py` 로 떠 두고 비교한다.
+`seed_import.py` 출력 읽기:
+
+| 출력 | 뜻 |
+|---|---|
+| 추가 N | 새 기준 정보가 들어왔다 |
+| 같음 N | 이미 같은 내용이다 |
+| **내용 다름 N** | 저장소에서 고쳐진 항목(문구·적용 범위 등)이 내 환경에는 옛 내용으로 있다 — 기본 실행은 건드리지 않는다 |
+
+"내용 다름" 이 있으면 저장소 내용으로 맞춘다:
+```bash
+.venv/bin/python tools/seed_import.py --replace
+```
+번호(id)가 같고 같은 테이블·컬럼(규칙은 같은 종류)에 대한 항목이면, 적용 범위(대상·스키마)가 바뀌었어도 같은 항목으로
+보고 갱신한다 — 옛 항목이 따로 남지 않는다. 내 환경에서 직접 고친 항목이 있으면 `--replace` 전에
+`tools/seed_export.py` 로 떠 두고 비교한다(덮어쓰이므로).

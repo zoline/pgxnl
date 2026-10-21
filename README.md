@@ -156,7 +156,7 @@ git config core.hooksPath .githooks    # (커밋하는 사람) 커밋할 때 위
 |---|---|---|---|---|
 | codebase_community | 49 | 43 | 43 | 스키마 전용 용어집·규칙·가드 |
 | card_games | 52 | 45 | 47 | 〃 |
-| california_schools | 30 | 30 | 30 | 〃 |
+| california_schools | 30 | 27 | 27 | 〃 — 질문 보강을 **끄고** 잰 값. 켠 환경에서는 30/30(10/19) |
 | debit_card_specializing | 30 | 26 | 25 | 〃 + JOIN 경로 등록(FK 없음) |
 | superhero | 52 | 42 | 42 | 전용 설정 없음(첫 측정) |
 | student_club | 48 | 35 | 37 | 〃 |
@@ -165,10 +165,28 @@ git config core.hooksPath .githooks    # (커밋하는 사람) 커밋할 때 위
 | thrombosis_prediction | 50 | 22 | 26 | 〃 |
 | toxicology | 40 | 14 | 18 | 〃 |
 | financial | 32 | 12 | 13 | 〃 |
-| **합계** | **500** | **330** | **345** | |
+| **합계** | **500** | **327** | **342** | |
+
+california_schools 를 뺀 스키마는 질문 보강(`PGXNL_ENRICHMENT_ENABLED=true`, 저장소 기본값)을 켠 환경에서 잰 값이다.
+질문 보강을 끄면 낮아질 수 있다(california_schools 는 켬 30 → 끔 27).
 
 위 4개 스키마는 정정 데이터셋 기준이라 원본 BIRD 점수와 직접 비교할 수 없다.
 BIRD로 프롬프트를 과도하게 튜닝하지 않는다는 원칙과 그 근거는 `docs/eval-history.md`에 있다.
+
+> **점수는 수행 환경에 따라 달라질 수 있다.** 위 수치는 이 저장소의 한 환경에서 잰 값이며, 같은 코드·기준 정보로도
+> 아래 차이 때문에 문항 몇 개가 갈릴 수 있다. 실제로 겪은 원인들이다.
+>
+> | 원인 | 예 |
+> |---|---|
+> | 모델·서빙 | 모델·양자화(FP8 등)·vLLM 버전·`--generation-config`·도구 파서가 다르면 같은 프롬프트에도 다른 SQL 이 나온다 |
+> | 파이프라인 설정 | 질문 보강(`PGXNL_ENRICHMENT_ENABLED`)·LLM 테이블 선택·링킹 마진·단계별 Thinking 켜짐/꺼짐 |
+> | 임베딩·색인 | 임베딩 모델이 다르면 링킹 후보가 바뀐다. 스키마 벡터가 **일부만 색인**되면 점수가 크게 떨어진다(docs/INSTALL.md 5.6) |
+> | 기준 정보 판 | seed(규칙·용어집) 판이 다르거나 `seed_import --replace` 로 바뀐 항목을 반영하지 않았을 때 |
+> | 대상 DB 적재 | `load_bird_db.sh` 대신 공식 `psql -f` 로 넣으면 스키마·PK 가 달라진다 |
+> | 동시 처리 수 | 1 이면 같은 설정에서 문항 단위로 재현되지만, 3 이상이면 서버 배치 영향으로 소수 문항이 흔들린다 |
+> | 채점 방식 | pgxnl EX(중복 행·소수 5자리)와 공식 EX(집합 비교)가 다르다 |
+>
+> 자기 환경의 기준선은 같은 설정으로 한 번 재 두고, 설정을 하나씩 바꿔 가며 비교한다.
 
 ---
 

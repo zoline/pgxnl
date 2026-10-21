@@ -1605,6 +1605,16 @@ code{font-family:monospace;background:var(--panel2);padding:2px 4px;border-radiu
           <div class="form-group"><label>유사도 임계값</label>
             <input type="number" id="setCacheThreshold" min="0" max="1" step="0.01" style="width:100px;"></div>
         </div>
+        <div class="form-row">
+          <div class="form-group"><label>질문 보강</label>
+            <select id="setEnrich"><option value="true">사용</option><option value="false">미사용</option></select></div>
+          <div class="form-group"><label>모호성 LLM 판단</label>
+            <select id="setEnrichSemantic"><option value="true">사용</option><option value="false">미사용</option></select></div>
+        </div>
+        <p class="dim" style="font-size:var(--fs-sm);margin:-4px 0 10px;">
+          질문 보강: 스키마 링킹 전에 모호한 표현을 찾아 질문을 다듬습니다(단계 enrich_detect·enrich_rewrite 모델 사용,
+          질문당 LLM 호출 1~2회 추가). 모호성 LLM 판단은 패턴으로 못 잡는 모호성을 LLM 으로 한 번 더 봅니다.
+          BIRD 결과표는 둘 다 사용으로 잰 값입니다. 저장하면 재기동 없이 다음 질문부터 반영됩니다.</p>
         <button class="btn-action" onclick="saveSettings()">저장</button>
         <div id="setMsg" class="hidden"></div>
         </div>
@@ -4656,6 +4666,8 @@ async function loadSettings(){
   $('setAgentMaxCorr').value=s.agent.max_corrections;
   $('setCacheEnabled').value=String(s.cache.enabled);
   $('setCacheThreshold').value=s.cache.similarity_threshold;
+  $('setEnrich').value=String(s.enrichment.enabled);
+  $('setEnrichSemantic').value=String(s.enrichment.semantic_check_enabled);
   await loadModels();
   await loadEmbedding();
   await loadStageConfig();
@@ -4667,6 +4679,8 @@ async function saveSettings(){
     agent_max_corrections:parseInt($('setAgentMaxCorr').value,10),
     cache_enabled:$('setCacheEnabled').value==='true',
     cache_similarity_threshold:parseFloat($('setCacheThreshold').value),
+    enrichment_enabled:$('setEnrich').value==='true',
+    enrichment_semantic_check_enabled:$('setEnrichSemantic').value==='true',
   };
   const r=await api('/api/admin/settings',{method:'PUT',body:JSON.stringify(body)});
   if(r.ok){

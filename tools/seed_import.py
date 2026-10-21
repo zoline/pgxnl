@@ -1,6 +1,6 @@
 """seed/*.json 의 기준 정보를 시스템 DB에 넣는다.
 
-    python tools/seed_import.py              # 이미 있는 항목(자연 키 일치)은 건너뜀
+    python tools/seed_import.py              # 없는 항목만 추가, 내용이 다른 항목은 개수만 알림
     python tools/seed_import.py --replace    # 이미 있는 항목은 seed 내용으로 덮어씀
     python tools/seed_import.py --dry-run    # 넣지 않고 개수만
 
@@ -14,9 +14,9 @@ import asyncio
 import json
 
 import asyncpg
+from seed_common import SEED_DIR, TABLES
 
 from pgxnl.settings import settings
-from seed_common import SEED_DIR, TABLES
 
 
 def _key_sql(spec: dict, offset: int) -> str:
@@ -32,6 +32,29 @@ def _val(spec: dict, row: dict, c: str):
     return json.dumps(v, ensure_ascii=False) if c in spec["jsonb"] and v is not None else v
 
 
+async def _find_existing(conn: asyncpg.Connection, spec: dict, row: dict):
+    """같은 항목인 기존 행: 자연 키가 같거나, 같은 id 이면서 id_guard 열이 같은 행."""
+    table = spec["table"]
+    found = await conn.fetchrow(
+        f"SELECT * FROM {table} WHERE {_key_sql(spec, 1)} LIMIT 1",
+        *[_val(spec, row, c) for c in spec["key"]])
+    if found is None and row.get("id") is not None:
+        same_id = await conn.fetchrow(f"SELECT * FROM {table} WHERE id = $1", row["id"])
+        if same_id is not None and all(same_id[c] == row.get(c) for c in spec["id_guard"]):
+            found = same_id
+    return found
+
+
+def _same_content(spec: dict, db_row, row: dict, data_cols: list[str]) -> bool:
+    for c in data_cols:
+        v = db_row[c]
+        if c in spec["jsonb"] and isinstance(v, str):
+            v = json.loads(v)
+        if v != row.get(c):
+            return False
+    return True
+
+
 async def import_table(conn: asyncpg.Connection, name: str, spec: dict, replace: bool, dry_run: bool) -> None:
     path = SEED_DIR / f"{name}.json"
     if not path.exists():
@@ -40,20 +63,21 @@ async def import_table(conn: asyncpg.Connection, name: str, spec: dict, replace:
     rows = json.loads(path.read_text(encoding="utf-8"))
     table = spec["table"]
     data_cols = [c for c in spec["columns"] if c != "id"]
-    added = updated = skipped = 0
+    added = updated = same = differs = 0
     for row in rows:
-        existing = await conn.fetchval(
-            f"SELECT id FROM {table} WHERE {_key_sql(spec, 1)} LIMIT 1",
-            *[_val(spec, row, c) for c in spec["key"]])
+        existing = await _find_existing(conn, spec, row)
         if existing is not None:
+            if _same_content(spec, existing, row, data_cols):
+                same += 1
+                continue
             if not replace:
-                skipped += 1
+                differs += 1
                 continue
             sets = ", ".join(f"{c} = ${i}{'::jsonb' if c in spec['jsonb'] else ''}"
                              for i, c in enumerate(data_cols, start=2))
             if not dry_run:
                 await conn.execute(f"UPDATE {table} SET {sets} WHERE id = $1",
-                                   existing, *[_val(spec, row, c) for c in data_cols])
+                                   existing["id"], *[_val(spec, row, c) for c in data_cols])
             updated += 1
             continue
         id_free = row.get("id") is not None and not await conn.fetchval(
@@ -69,7 +93,10 @@ async def import_table(conn: asyncpg.Connection, name: str, spec: dict, replace:
         await conn.execute(
             f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), "
             f"GREATEST((SELECT COALESCE(MAX(id), 0) FROM {table}), 1))")
-    print(f"{name}: 추가 {added}, 갱신 {updated}, 건너뜀 {skipped}" + (" (dry-run)" if dry_run else ""))
+    msg = f"{name}: 추가 {added}, 갱신 {updated}, 같음 {same}"
+    if differs:
+        msg += f", 내용 다름 {differs} (--replace 로 seed 내용으로 갱신)"
+    print(msg + (" (dry-run)" if dry_run else ""))
 
 
 async def run(replace: bool, dry_run: bool) -> None:
