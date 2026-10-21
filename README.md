@@ -156,7 +156,7 @@ git config core.hooksPath .githooks    # (커밋하는 사람) 커밋할 때 위
 |---|---|---|---|---|
 | codebase_community | 49 | 43 | 43 | 스키마 전용 용어집·규칙·가드 |
 | card_games | 52 | 45 | 47 | 〃 |
-| california_schools | 30 | 27 | 27 | 〃 — 질문 보강을 **끄고** 잰 값. 켠 환경에서는 30/30(10/19) |
+| california_schools | 30 | 30 | 30 | 〃 (질문 보강을 끄면 27/27) |
 | debit_card_specializing | 30 | 26 | 25 | 〃 + JOIN 경로 등록(FK 없음) |
 | superhero | 52 | 42 | 42 | 전용 설정 없음(첫 측정) |
 | student_club | 48 | 35 | 37 | 〃 |
@@ -165,7 +165,7 @@ git config core.hooksPath .githooks    # (커밋하는 사람) 커밋할 때 위
 | thrombosis_prediction | 50 | 22 | 26 | 〃 |
 | toxicology | 40 | 14 | 18 | 〃 |
 | financial | 32 | 12 | 13 | 〃 |
-| **합계** | **500** | **327** | **342** | |
+| **합계** | **500** | **330** | **345** | |
 
 california_schools 를 뺀 스키마는 질문 보강(`PGXNL_ENRICHMENT_ENABLED=true`, 저장소 기본값)을 켠 환경에서 잰 값이다.
 질문 보강을 끄면 낮아질 수 있다(california_schools 는 켬 30 → 끔 27).
