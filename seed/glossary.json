@@ -66,7 +66,7 @@
   "term": "school",
   "table_name": "schools",
   "column_name": "school",
-  "definition": "학교 이름. 질의에 schools 테이블이 이미 있으면 학교 이름은 이 컬럼을 쓰세요 — frpm.\"School Name\", satscores.sname 과 값이 다른 학교가 있습니다. schools 가 없는 질의라면 이름만을 위해 schools 를 조인하지 말고, 이미 쓰는 테이블의 이름 컬럼(frpm.\"School Name\" 또는 satscores.sname)을 쓰세요.",
+  "definition": "이름을 요청하는 경우 이 값을 사용하면됩니다. 다른 테이블의 \"School Name\"을 우선 사용하세요.",
   "is_pii": false,
   "source": null,
   "scope": "generation"
@@ -198,7 +198,7 @@
   "term": "School Name",
   "table_name": "frpm",
   "column_name": "School Name",
-  "definition": "현재: frpm 에 기록된 학교 이름. 질의에 schools 테이블이 있으면 학교 이름은 schools.school 을 쓰세요(값이 다른 학교가 있음). schools 가 없으면 이 컬럼을 쓰고, 이름만을 위해 schools 를 조인하지 마세요.",
+  "definition": "같은 값을 담은 컬럼이 다른 테이블에도 있습니다. 이미 쓰고 있는 테이블에 이 컬럼이 있으면 그것을 쓰고, 이 컬럼만을 위해 다른 테이블을 조인하지 마세요.",
   "is_pii": false,
   "source": "수동 등록 — 동일 개념 컬럼 대칭 등록",
   "scope": "generation"

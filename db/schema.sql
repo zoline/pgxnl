@@ -339,7 +339,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pgxnl_llm_profiles_one_default
 -- 파이프라인 단계 -> 등록된 모델 매핑 (관리자, 전체 기본값). profile_id가 NULL이면
 -- 등록된 모델 중 is_default=true인 것을(없으면 .env 기반 시스템 기본 모델을) 쓴다.
 CREATE TABLE IF NOT EXISTS pgxnl_llm_stage_config (
-    stage             TEXT        PRIMARY KEY,  -- 'react' | 'generate_sql' | 'summarize' | 'enrich'
+    stage             TEXT        PRIMARY KEY,  -- 단계 이름은 pgxnl/api/llm_profiles.py 의 STAGES (react, generate_sql, summarize, enrich_detect, enrich_rewrite, …)
     profile_id        INTEGER     REFERENCES pgxnl_llm_profiles(id) ON DELETE SET NULL,
     -- Qwen3류 하이브리드 reasoning 모델 전용(모델 속성이 아니라 이 단계에서 그 모델을
     -- 어떻게 쓸지의 설정) — 켜면 vLLM에 chat_template_kwargs.enable_thinking=false를
