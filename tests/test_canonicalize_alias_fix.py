@@ -37,6 +37,14 @@ def test_wrong_alias_is_corrected(parser):
     assert canon(parser, f"SELECT T1.street {JOINED}") == f"SELECT t2.street {JOINED}"
 
 
+def test_cte_alias_is_untouched(parser):
+    """CTE 별칭은 카탈로그에 없어 '없는 컬럼'처럼 보인다 — 안쪽 테이블 별칭으로 바꾸면
+    `missing FROM-clause entry` 로 죽는다(Northwind v2 run 565 seq 27)."""
+    sql = ("WITH cr AS (SELECT T2.school, T2.street FROM schools T2) "
+           "SELECT cr.school, cr.street FROM cr")
+    assert canon(parser, sql) == sql
+
+
 def test_correct_alias_is_untouched(parser):
     sql = f"SELECT T2.street {JOINED}"
     assert canon(parser, sql) == sql

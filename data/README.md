@@ -31,7 +31,7 @@
 
 ## Northwind (`northwind_pg.json`)
 
-`northwind_pg.json` 은 BIRD 가 아니다 — pgxnl 데모용 한글 골든 세트(`docs/northwind_golden_set.md`, 34문항)를
+`northwind_pg.json` 은 BIRD 가 아니다 — pgxnl 데모용 한글 골든 세트(`docs/northwind_golden_set_v2.md`, 34문항)를
 `tools/northwind_dataset.py` 로 평가 형식으로 바꾼 것이다(질문·SQL 만, 데이터는 들어 있지 않다). 날짜는 +28년 옮긴
 Northwind DB(2024-07 ~ 2026-05) 기준이다. DB 는 `scripts/load_northwind_db.sh` 가 pthom/northwind_psql 에서 받아 만든다.
 준비와 실행은 `docs/INSTALL.md` 6.5 절.

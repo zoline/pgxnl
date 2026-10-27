@@ -138,7 +138,10 @@ class SqlValidator:
         from pgxnl.grammar.generated.PostgreSQLParser import PostgreSQLParser as _P
         from pgxnl.parsing.ir_builder import collect_contexts
 
-        if collect_contexts(stmt.raw_tree, _P.Select_with_parensContext):
+        # CTE 도 같다 — CTE 별칭(cr)이 안쪽 테이블로 잘못 묶여 멀쩡한 `cr.revenue` 를 "order_details 에
+        # 없는 컬럼"으로 거부했다(Northwind v2 run 567 seq 27·33, 모델 SQL 은 gold 와 일치).
+        if collect_contexts(stmt.raw_tree, _P.Select_with_parensContext) \
+                or collect_contexts(stmt.raw_tree, _P.Common_table_exprContext):
             return None
 
         alias_to_table = {a.lower(): t.rsplit(".", 1)[-1].lower() for a, t in stmt.alias_to_table.items()}

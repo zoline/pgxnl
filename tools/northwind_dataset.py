@@ -1,4 +1,6 @@
-"""Northwind 골든 세트(docs/northwind_golden_set.json) → 평가 데이터셋(data/northwind_pg.json).
+"""Northwind 골든 세트(docs/northwind_golden_set_v2.json) → 평가 데이터셋(data/northwind_pg.json).
+
+v2 는 질문만 보고 출력 컬럼·순서를 알 수 있게 다시 쓴 판이다(원칙 P1~P8, docs/northwind_golden_set_v2.md).
 
     python tools/northwind_dataset.py                 # 변환만
     python tools/northwind_dataset.py --verify DSN    # 변환 + 각 gold 를 DB 에서 실행해 기대 결과와 대조
@@ -22,12 +24,13 @@ from decimal import Decimal
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "docs" / "northwind_golden_set.json"
+SRC = ROOT / "docs" / "northwind_golden_set_v2.json"
 OUT = ROOT / "data" / "northwind_pg.json"
 YEAR_SHIFT = 28
 DB_ID = "public"
 DIFFICULTY = {1: "simple", 2: "simple", 3: "moderate", 4: "challenging"}
 ROUND_NOTE = "금액(매출 등)은 소수 둘째 자리로 반올림한다."
+DAYS_NOTE = "평균 일수는 소수 첫째 자리로 반올림한다."   # v2 원칙 P8 — 질문만 보고 자릿수를 알 수 있게
 
 
 def shift_years(text: str) -> str:
@@ -40,8 +43,12 @@ def convert(src: dict) -> list[dict]:
     for q in src["questions"]:
         sql = shift_years(q["sql"])
         evidence = [q["hint"]] if q.get("hint") else []
-        if re.search(r"ROUND\s*\(", sql, re.IGNORECASE):
+        # 자릿수는 gold 의 ROUND(…, n) 로 가른다 — 2 는 금액·비율, 1 은 평균 일수(seq 31)뿐이다
+        digits = set(re.findall(r",\s*(\d)\s*\)\s*AS\s", sql, re.IGNORECASE)) if re.search(r"ROUND\s*\(", sql, re.I) else set()
+        if "2" in digits:
             evidence.append(ROUND_NOTE)
+        if "1" in digits:
+            evidence.append(DAYS_NOTE)
         items.append({
             "question_id": q["id"],
             "db_id": DB_ID,

@@ -154,6 +154,76 @@ def _sortby_is_desc(sortby, parser_cls) -> bool:
     return False
 
 
+class OrderByTiebreakRule(CanonRule):
+    """`ORDER BY … LIMIT n` 에 결과의 단순 컬럼을 동점 기준으로 덧붙인다(2026-10-27, northwind 전용으로 시작).
+
+    정렬 기준이 하나면 경계에서 동점인 행 중 어느 것이 잘릴지 정해지지 않는다 — 같은 질문에 Top 10 이
+    매번 달라질 수 있다. 실측: Northwind v2 seq 19(판매 수량 10·11위 1057 동률), seq 32(5회 함께 주문된
+    11쌍 중 3쌍만 들어감). gold 는 `ORDER BY total_quantity DESC, p.product_name` 처럼 결과의 이름 컬럼을
+    오름차순으로 붙여 가른다.
+
+    SELECT 의 **단순 컬럼 참조**(집계·식·서브쿼리 제외) 중 ORDER BY 에 없는 것을 SELECT 순서대로 붙인다.
+    SELECT 에 있는 컬럼이라 GROUP BY·DISTINCT 와도 충돌하지 않는다. 바깥 쿼리만 보고, UNION 등은 건너뛴다.
+
+    `NULLS LAST` 정규화(규칙 43)도 마지막 정렬 키 바로 뒤에 글자를 넣는다. 규칙들은 모두 원본 트리를 보고
+    편집이 한꺼번에 적용되므로 같은 자리에 넣으면 순서가 섞인다 — 그래서 여기는 LIMIT 키워드 **앞**에 넣는다.
+    """
+
+    _PLAIN_COL = re.compile(r'^(?:("[^"]+"|[A-Za-z_][\w$]*)\.)?("[^"]+"|[A-Za-z_][\w$]*)$')
+
+    def collect_edits(self, stmt: ParsedStatement) -> list[TokenEdit]:
+        from pgxnl.grammar.generated.PostgreSQLParser import PostgreSQLParser as _P
+        from pgxnl.parsing.base import SqlKind
+        from pgxnl.parsing.ir_builder import _first_present, collect_contexts
+
+        if stmt.kind != SqlKind.SELECT or stmt.raw_tree is None:
+            return []
+        outer = next(iter(collect_contexts(stmt.raw_tree, _P.Select_no_parensContext)), None)
+        if outer is None:
+            return []
+        sort = _first_present(outer, "sort_clause_", "sort_clause")
+        limit = _first_present(outer, "select_limit_", "select_limit")
+        if sort is None or limit is None or not limit.getText().lower().startswith("limit"):
+            return []
+        prims = collect_contexts(outer.select_clause(), _P.Simple_select_pramaryContext)
+        if len(prims) != 1:          # UNION/INTERSECT/EXCEPT
+            return []
+        target_list = _first_present(prims[0], "target_list_", "target_list")
+        if target_list is None:
+            return []
+        elements = collect_contexts(target_list, _P.Target_elContext)
+
+        sort_keys = set()
+        for sb in collect_contexts(sort, _P.SortbyContext):
+            key = sb.a_expr().getText().lower() if sb.a_expr() is not None else ""
+            if key.isdigit() and 0 < int(key) <= len(elements):   # ORDER BY 1 → SELECT 첫 항목
+                el = elements[int(key) - 1]
+                expr = el.a_expr() if hasattr(el, "a_expr") else None
+                key = (expr.getText() if expr is not None else el.getText()).lower()
+            sort_keys.add(key)
+            sort_keys.add(key.rsplit(".", 1)[-1])
+
+        extra: list[str] = []
+        for el in elements:
+            expr = el.a_expr() if hasattr(el, "a_expr") else None
+            if expr is None:
+                return []            # `*` — 무엇이 붙을지 모른다
+            text = expr.getText()
+            if not self._PLAIN_COL.match(text):
+                continue
+            alias_ctx = _first_present(el, "colLabel", "identifier", "bareColLabel")
+            names = {text.lower(), text.lower().rsplit(".", 1)[-1]}
+            if alias_ctx is not None:
+                names.add(alias_ctx.getText().lower())
+            if names & sort_keys:
+                continue
+            extra.append(text)
+        if not extra:
+            return []
+        return [TokenEdit(kind="insert_before", start_token_index=limit.start.tokenIndex,
+                          text=", " + ", ".join(extra) + " ")]
+
+
 class AliasFixRule(CanonRule):
     """존재하지 않는 `별칭.컬럼` 참조를 그 컬럼을 실제로 가진 테이블의 별칭으로 고친다.
 
@@ -187,7 +257,11 @@ class AliasFixRule(CanonRule):
         # 스코프를 구분하지 못한다 — 서브쿼리 안에만 있는 별칭을 바깥 참조에 붙이면
         # `invalid reference to FROM-clause entry`로 실행 자체가 실패한다(실측: run 104
         # seq 447). 스코프 분석을 제대로 하기 전까지는 보수적으로 건너뛴다.
-        if collect_contexts(stmt.raw_tree, _P.Select_with_parensContext):
+        # CTE 도 같다 — `WITH cr AS (…) SELECT cr.company_name FROM cr` 의 cr 은 CTE 라 카탈로그에
+        # 컬럼이 없어 "없는 컬럼"으로 보이고, 안쪽 customers 의 별칭 c 로 바꿔 실행을 망가뜨렸다
+        # (Northwind v2 run 565·566 seq 27·33 — 모델 SQL 은 gold 와 일치했다).
+        if collect_contexts(stmt.raw_tree, _P.Select_with_parensContext) \
+                or collect_contexts(stmt.raw_tree, _P.Common_table_exprContext):
             return []
 
         alias_to_table = {a.lower(): _bare_table(t) for a, t in stmt.alias_to_table.items()}
@@ -1203,6 +1277,8 @@ def load_rules_from_store(
             rules.append(EnsureLimitRule(default_limit=r.definition.get("default_limit", 1000)))
         elif kind == "order_by_nulls":
             rules.append(OrderByNullsRule(mode=r.definition.get("mode", "desc_last")))
+        elif kind == "order_by_tiebreak":
+            rules.append(OrderByTiebreakRule())
         elif kind == "canonical_column":
             # 스키마 분석(Design Lab)이 있어야 판정할 수 있는 규칙 — 호출자가 사본
             # 매핑을 주지 않으면 조용히 건너뛴다(설계 원칙 1).

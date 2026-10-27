@@ -1,0 +1,2535 @@
+{
+  "principles": [
+    {
+      "id": "P1 출력 항목 명시",
+      "rule": "결과로 나올 항목은 질문에 모두 명사로 적는다. 질문에 없는 항목은 내지 않는다."
+    },
+    {
+      "id": "P2 나열 순서 = 컬럼 순서",
+      "rule": "질문에 적힌 순서대로 컬럼을 낸다. 'X별 A와 B'는 X, A, B 순서."
+    },
+    {
+      "id": "P3 조건과 출력 분리",
+      "rule": "필터·정렬·순위 기준에 쓰인 항목도 질문이 출력하라고 적지 않으면 내지 않는다."
+    },
+    {
+      "id": "P4 엔터티 표기",
+      "rule": "제품→제품명(product_name), 고객사→회사명(company_name), 공급업체→회사명, 배송사→배송사명, 카테고리→카테고리명, 직원→이름(first_name || ' ' || last_name 한 컬럼), 주문→주문번호(order_id). ID는 질문에 'ID'라고 적을 때만 낸다."
+    },
+    {
+      "id": "P5 비율·순위",
+      "rule": "비율은 0~100 퍼센트 값. 근거 건수나 기준값(전월 매출 등)은 질문에 적을 때만 낸다. 순위 번호는 '순위'라고 적을 때만 낸다."
+    },
+    {
+      "id": "P6 질문당 의도 하나",
+      "rule": "'몇 개'는 개수 한 값만 낸다. 개수와 목록을 한 질문에서 동시에 묻지 않는다."
+    },
+    {
+      "id": "P7 행 순서",
+      "rule": "정렬이 필요한 질문은 질문에 순서를 적는다(예: '매출이 높은 순서로'). 상위 N 질문은 그 기준의 내림차순."
+    },
+    {
+      "id": "P8 값 표현",
+      "rule": "금액과 비율은 소수 둘째 자리 반올림, 평균 일수는 소수 첫째 자리. 매출 = unit_price * quantity * (1 - discount)."
+    }
+  ],
+  "questions": [
+    {
+      "id": "L1-01",
+      "level": 1,
+      "tags": [
+        "filter",
+        "count"
+      ],
+      "ko": "독일에 있는 고객사는 몇 곳인가요?",
+      "sql": "SELECT COUNT(*) AS customer_count FROM customers WHERE country = 'Germany';",
+      "seq": 0,
+      "output": [
+        "고객사 수"
+      ],
+      "expected": {
+        "columns": [
+          "customer_count"
+        ],
+        "row_count": 1,
+        "rows": [
+          [
+            11
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L1-02",
+      "level": 1,
+      "tags": [
+        "filter",
+        "boolean-flag"
+      ],
+      "ko": "단종된 제품의 제품명을 제품명 순서로 보여주세요.",
+      "hint": "products.discontinued = 1 이면 단종.",
+      "sql": "SELECT product_name FROM products WHERE discontinued = 1 ORDER BY product_name;",
+      "seq": 1,
+      "output": [
+        "제품명"
+      ],
+      "expected": {
+        "columns": [
+          "product_name"
+        ],
+        "row_count": 10,
+        "rows": [
+          [
+            "Alice Mutton"
+          ],
+          [
+            "Chai"
+          ],
+          [
+            "Chang"
+          ],
+          [
+            "Chef Anton's Gumbo Mix"
+          ],
+          [
+            "Guaraná Fantástica"
+          ],
+          [
+            "Mishi Kobe Niku"
+          ],
+          [
+            "Perth Pasties"
+          ],
+          [
+            "Rössle Sauerkraut"
+          ],
+          [
+            "Singaporean Hokkien Fried Mee"
+          ],
+          [
+            "Thüringer Rostbratwurst"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L1-03",
+      "level": 1,
+      "tags": [
+        "filter",
+        "column-compare"
+      ],
+      "ko": "판매 중인 제품 중 재고 수량이 재주문 기준보다 적은 제품의 제품명, 재고 수량, 재주문 기준을 제품명 순서로 보여주세요.",
+      "hint": "판매 중 = discontinued = 0. 재주문 기준 = reorder_level.",
+      "sql": "SELECT product_name, units_in_stock, reorder_level FROM products WHERE discontinued = 0 AND units_in_stock < reorder_level ORDER BY product_name;",
+      "seq": 2,
+      "output": [
+        "제품명",
+        "재고 수량",
+        "재주문 기준"
+      ],
+      "expected": {
+        "columns": [
+          "product_name",
+          "units_in_stock",
+          "reorder_level"
+        ],
+        "row_count": 17,
+        "rows": [
+          [
+            "Aniseed Syrup",
+            13,
+            25
+          ],
+          [
+            "Chocolade",
+            15,
+            25
+          ],
+          [
+            "Gnocchi di nonna Alice",
+            21,
+            30
+          ],
+          [
+            "Gorgonzola Telino",
+            0,
+            20
+          ],
+          [
+            "Gravad lax",
+            11,
+            25
+          ],
+          [
+            "Ipoh Coffee",
+            17,
+            25
+          ],
+          [
+            "Longlife Tofu",
+            4,
+            5
+          ],
+          [
+            "Louisiana Hot Spiced Okra",
+            4,
+            20
+          ],
+          [
+            "Mascarpone Fabioli",
+            9,
+            25
+          ],
+          [
+            "Maxilaku",
+            10,
+            15
+          ],
+          [
+            "Nord-Ost Matjeshering",
+            10,
+            15
+          ],
+          [
+            "Outback Lager",
+            15,
+            30
+          ],
+          [
+            "Queso Cabrales",
+            22,
+            30
+          ],
+          [
+            "Rogede sild",
+            5,
+            15
+          ],
+          [
+            "Scottish Longbreads",
+            6,
+            15
+          ],
+          [
+            "Sir Rodney's Scones",
+            3,
+            5
+          ],
+          [
+            "Wimmers gute Semmelknödel",
+            22,
+            30
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L1-04",
+      "level": 1,
+      "tags": [
+        "order",
+        "limit"
+      ],
+      "ko": "단가가 가장 비싼 제품 10개의 제품명과 단가를 보여주세요.",
+      "sql": "SELECT product_name, unit_price FROM products ORDER BY unit_price DESC, product_name LIMIT 10;",
+      "seq": 3,
+      "output": [
+        "제품명",
+        "단가"
+      ],
+      "expected": {
+        "columns": [
+          "product_name",
+          "unit_price"
+        ],
+        "row_count": 10,
+        "rows": [
+          [
+            "Côte de Blaye",
+            263.5
+          ],
+          [
+            "Thüringer Rostbratwurst",
+            123.79
+          ],
+          [
+            "Mishi Kobe Niku",
+            97.0
+          ],
+          [
+            "Sir Rodney's Marmalade",
+            81.0
+          ],
+          [
+            "Carnarvon Tigers",
+            62.5
+          ],
+          [
+            "Raclette Courdavault",
+            55.0
+          ],
+          [
+            "Manjimup Dried Apples",
+            53.0
+          ],
+          [
+            "Tarte au sucre",
+            49.3
+          ],
+          [
+            "Ipoh Coffee",
+            46.0
+          ],
+          [
+            "Rössle Sauerkraut",
+            45.6
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L1-05",
+      "level": 1,
+      "tags": [
+        "group",
+        "count"
+      ],
+      "ko": "국가별 고객 수를 많은 순으로 보여주세요.",
+      "sql": "SELECT country, COUNT(*) AS customer_count FROM customers GROUP BY country ORDER BY customer_count DESC, country;",
+      "seq": 4,
+      "output": [
+        "국가",
+        "고객 수"
+      ],
+      "expected": {
+        "columns": [
+          "country",
+          "customer_count"
+        ],
+        "row_count": 21,
+        "rows": [
+          [
+            "USA",
+            13
+          ],
+          [
+            "France",
+            11
+          ],
+          [
+            "Germany",
+            11
+          ],
+          [
+            "Brazil",
+            9
+          ],
+          [
+            "UK",
+            7
+          ],
+          [
+            "Mexico",
+            5
+          ],
+          [
+            "Spain",
+            5
+          ],
+          [
+            "Venezuela",
+            4
+          ],
+          [
+            "Argentina",
+            3
+          ],
+          [
+            "Canada",
+            3
+          ],
+          [
+            "Italy",
+            3
+          ],
+          [
+            "Austria",
+            2
+          ],
+          [
+            "Belgium",
+            2
+          ],
+          [
+            "Denmark",
+            2
+          ],
+          [
+            "Finland",
+            2
+          ],
+          [
+            "Portugal",
+            2
+          ],
+          [
+            "Sweden",
+            2
+          ],
+          [
+            "Switzerland",
+            2
+          ],
+          [
+            "Ireland",
+            1
+          ],
+          [
+            "Norway",
+            1
+          ],
+          [
+            "Poland",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L1-06",
+      "level": 1,
+      "tags": [
+        "date-filter",
+        "count"
+      ],
+      "ko": "1997년에 접수된 주문은 몇 건인가요?",
+      "sql": "SELECT COUNT(*) AS order_count FROM orders WHERE order_date >= DATE '1997-01-01' AND order_date < DATE '1998-01-01';",
+      "seq": 5,
+      "output": [
+        "주문 건수"
+      ],
+      "expected": {
+        "columns": [
+          "order_count"
+        ],
+        "row_count": 1,
+        "rows": [
+          [
+            408
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L1-07",
+      "level": 1,
+      "tags": [
+        "projection",
+        "order"
+      ],
+      "ko": "직원들의 이름, 직책, 입사일을 입사 순서대로 보여주세요.",
+      "sql": "SELECT first_name || ' ' || last_name AS employee_name, title, hire_date FROM employees ORDER BY hire_date, employee_id;",
+      "seq": 6,
+      "output": [
+        "이름",
+        "직책",
+        "입사일"
+      ],
+      "expected": {
+        "columns": [
+          "employee_name",
+          "title",
+          "hire_date"
+        ],
+        "row_count": 9,
+        "rows": [
+          [
+            "Janet Leverling",
+            "Sales Representative",
+            "1992-04-01"
+          ],
+          [
+            "Nancy Davolio",
+            "Sales Representative",
+            "1992-05-01"
+          ],
+          [
+            "Andrew Fuller",
+            "Vice President, Sales",
+            "1992-08-14"
+          ],
+          [
+            "Margaret Peacock",
+            "Sales Representative",
+            "1993-05-03"
+          ],
+          [
+            "Steven Buchanan",
+            "Sales Manager",
+            "1993-10-17"
+          ],
+          [
+            "Michael Suyama",
+            "Sales Representative",
+            "1993-10-17"
+          ],
+          [
+            "Robert King",
+            "Sales Representative",
+            "1994-01-02"
+          ],
+          [
+            "Laura Callahan",
+            "Inside Sales Coordinator",
+            "1994-03-05"
+          ],
+          [
+            "Anne Dodsworth",
+            "Sales Representative",
+            "1994-11-15"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L1-08",
+      "level": 1,
+      "tags": [
+        "filter",
+        "numeric"
+      ],
+      "ko": "운송비가 500 이상인 주문의 주문번호, 주문일, 운송비를 운송비가 큰 순서로 보여주세요.",
+      "sql": "SELECT order_id, order_date, freight FROM orders WHERE freight >= 500 ORDER BY freight DESC;",
+      "seq": 7,
+      "output": [
+        "주문번호",
+        "주문일",
+        "운송비"
+      ],
+      "expected": {
+        "columns": [
+          "order_id",
+          "order_date",
+          "freight"
+        ],
+        "row_count": 13,
+        "rows": [
+          [
+            10540,
+            "1997-05-19",
+            1007.64
+          ],
+          [
+            10372,
+            "1996-12-04",
+            890.78
+          ],
+          [
+            11030,
+            "1998-04-17",
+            830.75
+          ],
+          [
+            10691,
+            "1997-10-03",
+            810.05
+          ],
+          [
+            10514,
+            "1997-04-22",
+            789.95
+          ],
+          [
+            11017,
+            "1998-04-13",
+            754.26
+          ],
+          [
+            10816,
+            "1998-01-06",
+            719.78
+          ],
+          [
+            10479,
+            "1997-03-19",
+            708.95
+          ],
+          [
+            10983,
+            "1998-03-27",
+            657.54
+          ],
+          [
+            11032,
+            "1998-04-17",
+            606.19
+          ],
+          [
+            10897,
+            "1998-02-19",
+            603.54
+          ],
+          [
+            10912,
+            "1998-02-26",
+            580.91
+          ],
+          [
+            10612,
+            "1997-07-28",
+            544.08
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L2-01",
+      "level": 2,
+      "tags": [
+        "join",
+        "group",
+        "avg"
+      ],
+      "ko": "카테고리별 제품 수와 평균 단가를 알려주세요.",
+      "sql": "SELECT c.category_name, COUNT(*) AS product_count, ROUND(AVG(p.unit_price)::numeric, 2) AS avg_unit_price FROM products p JOIN categories c ON c.category_id = p.category_id GROUP BY c.category_name ORDER BY c.category_name;",
+      "seq": 8,
+      "output": [
+        "카테고리명",
+        "제품 수",
+        "평균 단가"
+      ],
+      "expected": {
+        "columns": [
+          "category_name",
+          "product_count",
+          "avg_unit_price"
+        ],
+        "row_count": 8,
+        "rows": [
+          [
+            "Beverages",
+            12,
+            37.98
+          ],
+          [
+            "Condiments",
+            12,
+            22.85
+          ],
+          [
+            "Confections",
+            13,
+            25.16
+          ],
+          [
+            "Dairy Products",
+            10,
+            28.73
+          ],
+          [
+            "Grains/Cereals",
+            7,
+            20.25
+          ],
+          [
+            "Meat/Poultry",
+            6,
+            54.01
+          ],
+          [
+            "Produce",
+            5,
+            32.37
+          ],
+          [
+            "Seafood",
+            12,
+            20.68
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L2-02",
+      "level": 2,
+      "tags": [
+        "date-trunc",
+        "group"
+      ],
+      "ko": "1997년 월별 주문 건수를 보여주세요.",
+      "sql": "SELECT EXTRACT(MONTH FROM order_date)::int AS month, COUNT(*) AS order_count FROM orders WHERE order_date >= DATE '1997-01-01' AND order_date < DATE '1998-01-01' GROUP BY 1 ORDER BY 1;",
+      "seq": 9,
+      "output": [
+        "월",
+        "주문 건수"
+      ],
+      "expected": {
+        "columns": [
+          "month",
+          "order_count"
+        ],
+        "row_count": 12,
+        "rows": [
+          [
+            1,
+            33
+          ],
+          [
+            2,
+            29
+          ],
+          [
+            3,
+            30
+          ],
+          [
+            4,
+            31
+          ],
+          [
+            5,
+            32
+          ],
+          [
+            6,
+            30
+          ],
+          [
+            7,
+            33
+          ],
+          [
+            8,
+            33
+          ],
+          [
+            9,
+            37
+          ],
+          [
+            10,
+            38
+          ],
+          [
+            11,
+            34
+          ],
+          [
+            12,
+            48
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L2-03",
+      "level": 2,
+      "tags": [
+        "join",
+        "group",
+        "avg"
+      ],
+      "ko": "배송사별 주문 건수와 평균 운송비는?",
+      "hint": "orders.ship_via = shippers.shipper_id.",
+      "sql": "SELECT s.company_name AS shipper, COUNT(*) AS order_count, ROUND(AVG(o.freight)::numeric, 2) AS avg_freight FROM orders o JOIN shippers s ON s.shipper_id = o.ship_via GROUP BY s.company_name ORDER BY s.company_name;",
+      "seq": 10,
+      "output": [
+        "배송사명",
+        "주문 건수",
+        "평균 운송비"
+      ],
+      "expected": {
+        "columns": [
+          "shipper",
+          "order_count",
+          "avg_freight"
+        ],
+        "row_count": 3,
+        "rows": [
+          [
+            "Federal Shipping",
+            255,
+            80.44
+          ],
+          [
+            "Speedy Express",
+            249,
+            65.0
+          ],
+          [
+            "United Package",
+            326,
+            86.64
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L2-04",
+      "level": 2,
+      "tags": [
+        "aggregate",
+        "revenue"
+      ],
+      "ko": "1997년 총 매출은 얼마인가요?",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.",
+      "sql": "SELECT ROUND(SUM(od.unit_price * od.quantity * (1 - od.discount))::numeric, 2) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id WHERE o.order_date >= DATE '1997-01-01' AND o.order_date < DATE '1998-01-01';",
+      "seq": 11,
+      "output": [
+        "매출"
+      ],
+      "expected": {
+        "columns": [
+          "revenue"
+        ],
+        "row_count": 1,
+        "rows": [
+          [
+            617085.2
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L2-05",
+      "level": 2,
+      "tags": [
+        "group",
+        "revenue",
+        "trend"
+      ],
+      "ko": "연도별 매출과 주문 건수를 연도 순서로 보여주세요.",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.",
+      "sql": "SELECT EXTRACT(YEAR FROM o.order_date)::int AS year, ROUND(SUM(od.unit_price * od.quantity * (1 - od.discount))::numeric, 2) AS revenue, COUNT(DISTINCT o.order_id) AS order_count FROM orders o JOIN order_details od ON od.order_id = o.order_id GROUP BY 1 ORDER BY 1;",
+      "seq": 12,
+      "output": [
+        "연도",
+        "매출",
+        "주문 건수"
+      ],
+      "expected": {
+        "columns": [
+          "year",
+          "revenue",
+          "order_count"
+        ],
+        "row_count": 3,
+        "rows": [
+          [
+            1996,
+            208083.97,
+            152
+          ],
+          [
+            1997,
+            617085.2,
+            408
+          ],
+          [
+            1998,
+            440623.87,
+            270
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L2-06",
+      "level": 2,
+      "tags": [
+        "join",
+        "group"
+      ],
+      "ko": "공급업체 국가별로 공급하는 제품 수는?",
+      "sql": "SELECT s.country, COUNT(*) AS product_count FROM products p JOIN suppliers s ON s.supplier_id = p.supplier_id GROUP BY s.country ORDER BY product_count DESC, s.country;",
+      "seq": 13,
+      "output": [
+        "국가",
+        "제품 수"
+      ],
+      "expected": {
+        "columns": [
+          "country",
+          "product_count"
+        ],
+        "row_count": 16,
+        "rows": [
+          [
+            "USA",
+            12
+          ],
+          [
+            "Germany",
+            9
+          ],
+          [
+            "Australia",
+            8
+          ],
+          [
+            "UK",
+            7
+          ],
+          [
+            "Japan",
+            6
+          ],
+          [
+            "France",
+            5
+          ],
+          [
+            "Italy",
+            5
+          ],
+          [
+            "Sweden",
+            5
+          ],
+          [
+            "Canada",
+            4
+          ],
+          [
+            "Finland",
+            3
+          ],
+          [
+            "Norway",
+            3
+          ],
+          [
+            "Singapore",
+            3
+          ],
+          [
+            "Denmark",
+            2
+          ],
+          [
+            "Netherlands",
+            2
+          ],
+          [
+            "Spain",
+            2
+          ],
+          [
+            "Brazil",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L2-07",
+      "level": 2,
+      "tags": [
+        "having"
+      ],
+      "ko": "주문을 20건 이상 한 고객사의 회사명과 주문 건수를 주문 건수가 많은 순서로 보여주세요.",
+      "sql": "SELECT c.company_name, COUNT(*) AS order_count FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.company_name HAVING COUNT(*) >= 20 ORDER BY order_count DESC, c.company_name;",
+      "seq": 14,
+      "output": [
+        "회사명",
+        "주문 건수"
+      ],
+      "expected": {
+        "columns": [
+          "company_name",
+          "order_count"
+        ],
+        "row_count": 3,
+        "rows": [
+          [
+            "Save-a-lot Markets",
+            31
+          ],
+          [
+            "Ernst Handel",
+            30
+          ],
+          [
+            "QUICK-Stop",
+            28
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L2-08",
+      "level": 2,
+      "tags": [
+        "case",
+        "ratio"
+      ],
+      "ko": "배송된 주문 중 요청일보다 늦게 배송된 주문의 비율(%)은 얼마인가요?",
+      "hint": "지연 = shipped_date > required_date. 미배송(shipped_date IS NULL) 주문은 제외.",
+      "sql": "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE shipped_date > required_date) / COUNT(*), 2) AS late_pct FROM orders WHERE shipped_date IS NOT NULL;",
+      "seq": 15,
+      "output": [
+        "지연 비율(%)"
+      ],
+      "expected": {
+        "columns": [
+          "late_pct"
+        ],
+        "row_count": 1,
+        "rows": [
+          [
+            4.57
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L3-01",
+      "level": 3,
+      "tags": [
+        "join",
+        "revenue",
+        "topn"
+      ],
+      "ko": "1997년 매출 상위 5개 고객사의 회사명, 국가, 매출을 보여주세요.",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.",
+      "sql": "SELECT c.company_name, c.country, ROUND(SUM(od.unit_price * od.quantity * (1 - od.discount))::numeric, 2) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_date >= DATE '1997-01-01' AND o.order_date < DATE '1998-01-01' GROUP BY c.company_name, c.country ORDER BY revenue DESC LIMIT 5;",
+      "seq": 16,
+      "output": [
+        "회사명",
+        "국가",
+        "매출"
+      ],
+      "expected": {
+        "columns": [
+          "company_name",
+          "country",
+          "revenue"
+        ],
+        "row_count": 5,
+        "rows": [
+          [
+            "QUICK-Stop",
+            "Germany",
+            61109.91
+          ],
+          [
+            "Save-a-lot Markets",
+            "USA",
+            57713.57
+          ],
+          [
+            "Ernst Handel",
+            "Austria",
+            48096.26
+          ],
+          [
+            "Mère Paillarde",
+            "Canada",
+            23332.31
+          ],
+          [
+            "Hungry Owl All-Night Grocers",
+            "Ireland",
+            20454.4
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L3-02",
+      "level": 3,
+      "tags": [
+        "join",
+        "revenue"
+      ],
+      "ko": "1997년 직원별 매출과 주문 건수를 매출이 높은 순서로 보여주세요.",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.",
+      "sql": "SELECT e.first_name || ' ' || e.last_name AS employee_name, ROUND(SUM(od.unit_price * od.quantity * (1 - od.discount))::numeric, 2) AS revenue, COUNT(DISTINCT o.order_id) AS order_count FROM orders o JOIN order_details od ON od.order_id = o.order_id JOIN employees e ON e.employee_id = o.employee_id WHERE o.order_date >= DATE '1997-01-01' AND o.order_date < DATE '1998-01-01' GROUP BY e.employee_id, e.first_name, e.last_name ORDER BY revenue DESC;",
+      "seq": 17,
+      "output": [
+        "이름",
+        "매출",
+        "주문 건수"
+      ],
+      "expected": {
+        "columns": [
+          "employee_name",
+          "revenue",
+          "order_count"
+        ],
+        "row_count": 9,
+        "rows": [
+          [
+            "Margaret Peacock",
+            128809.79,
+            81
+          ],
+          [
+            "Janet Leverling",
+            108026.16,
+            71
+          ],
+          [
+            "Nancy Davolio",
+            93148.08,
+            55
+          ],
+          [
+            "Andrew Fuller",
+            70444.14,
+            41
+          ],
+          [
+            "Robert King",
+            60471.19,
+            36
+          ],
+          [
+            "Laura Callahan",
+            56032.62,
+            54
+          ],
+          [
+            "Michael Suyama",
+            43126.37,
+            33
+          ],
+          [
+            "Steven Buchanan",
+            30716.47,
+            18
+          ],
+          [
+            "Anne Dodsworth",
+            26310.39,
+            19
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L3-03",
+      "level": 3,
+      "tags": [
+        "join",
+        "revenue"
+      ],
+      "ko": "카테고리별 전체 매출을 높은 순으로 보여주세요.",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.",
+      "sql": "SELECT c.category_name, ROUND(SUM(od.unit_price * od.quantity * (1 - od.discount))::numeric, 2) AS revenue FROM order_details od JOIN products p ON p.product_id = od.product_id JOIN categories c ON c.category_id = p.category_id GROUP BY c.category_name ORDER BY revenue DESC;",
+      "seq": 18,
+      "output": [
+        "카테고리명",
+        "매출"
+      ],
+      "expected": {
+        "columns": [
+          "category_name",
+          "revenue"
+        ],
+        "row_count": 8,
+        "rows": [
+          [
+            "Beverages",
+            267868.18
+          ],
+          [
+            "Dairy Products",
+            234507.28
+          ],
+          [
+            "Confections",
+            167357.23
+          ],
+          [
+            "Meat/Poultry",
+            163022.36
+          ],
+          [
+            "Seafood",
+            131261.74
+          ],
+          [
+            "Condiments",
+            106047.08
+          ],
+          [
+            "Produce",
+            99984.58
+          ],
+          [
+            "Grains/Cereals",
+            95744.59
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L3-04",
+      "level": 3,
+      "tags": [
+        "join",
+        "topn"
+      ],
+      "ko": "판매 수량이 가장 많은 제품 10개의 제품명과 판매 수량을 보여주세요.",
+      "sql": "SELECT p.product_name, SUM(od.quantity) AS total_quantity FROM order_details od JOIN products p ON p.product_id = od.product_id GROUP BY p.product_name ORDER BY total_quantity DESC, p.product_name LIMIT 10;",
+      "seq": 19,
+      "output": [
+        "제품명",
+        "판매 수량"
+      ],
+      "expected": {
+        "columns": [
+          "product_name",
+          "total_quantity"
+        ],
+        "row_count": 10,
+        "rows": [
+          [
+            "Camembert Pierrot",
+            1577
+          ],
+          [
+            "Raclette Courdavault",
+            1496
+          ],
+          [
+            "Gorgonzola Telino",
+            1397
+          ],
+          [
+            "Gnocchi di nonna Alice",
+            1263
+          ],
+          [
+            "Pavlova",
+            1158
+          ],
+          [
+            "Rhönbräu Klosterbier",
+            1155
+          ],
+          [
+            "Guaraná Fantástica",
+            1125
+          ],
+          [
+            "Boston Crab Meat",
+            1103
+          ],
+          [
+            "Tarte au sucre",
+            1083
+          ],
+          [
+            "Chang",
+            1057
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L3-05",
+      "level": 3,
+      "tags": [
+        "join",
+        "filter-by-name"
+      ],
+      "ko": "해산물(Seafood) 제품을 공급하는 업체와 국가를 알려주세요.",
+      "sql": "SELECT DISTINCT s.company_name, s.country FROM products p JOIN suppliers s ON s.supplier_id = p.supplier_id JOIN categories c ON c.category_id = p.category_id WHERE c.category_name = 'Seafood' ORDER BY s.company_name;",
+      "seq": 20,
+      "output": [
+        "회사명",
+        "국가"
+      ],
+      "expected": {
+        "columns": [
+          "company_name",
+          "country"
+        ],
+        "row_count": 8,
+        "rows": [
+          [
+            "Escargots Nouveaux",
+            "France"
+          ],
+          [
+            "Lyngbysild",
+            "Denmark"
+          ],
+          [
+            "Mayumi's",
+            "Japan"
+          ],
+          [
+            "New England Seafood Cannery",
+            "USA"
+          ],
+          [
+            "Nord-Ost-Fisch Handelsgesellschaft mbH",
+            "Germany"
+          ],
+          [
+            "Pavlova, Ltd.",
+            "Australia"
+          ],
+          [
+            "Svensk Sjöföda AB",
+            "Sweden"
+          ],
+          [
+            "Tokyo Traders",
+            "Japan"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L3-06",
+      "level": 3,
+      "tags": [
+        "self-join",
+        "left-join"
+      ],
+      "ko": "각 직원의 이름과 상사 이름을 직원 ID 순서로 보여주세요. 상사가 없는 직원도 포함합니다.",
+      "hint": "employees.reports_to = 상사의 employee_id. 상사가 없는 직원도 포함.",
+      "sql": "SELECT e.first_name || ' ' || e.last_name AS employee_name, m.first_name || ' ' || m.last_name AS manager_name FROM employees e LEFT JOIN employees m ON m.employee_id = e.reports_to ORDER BY e.employee_id;",
+      "seq": 21,
+      "output": [
+        "이름",
+        "상사 이름"
+      ],
+      "expected": {
+        "columns": [
+          "employee_name",
+          "manager_name"
+        ],
+        "row_count": 9,
+        "rows": [
+          [
+            "Nancy Davolio",
+            "Andrew Fuller"
+          ],
+          [
+            "Andrew Fuller",
+            null
+          ],
+          [
+            "Janet Leverling",
+            "Andrew Fuller"
+          ],
+          [
+            "Margaret Peacock",
+            "Andrew Fuller"
+          ],
+          [
+            "Steven Buchanan",
+            "Andrew Fuller"
+          ],
+          [
+            "Michael Suyama",
+            "Steven Buchanan"
+          ],
+          [
+            "Robert King",
+            "Steven Buchanan"
+          ],
+          [
+            "Laura Callahan",
+            "Andrew Fuller"
+          ],
+          [
+            "Anne Dodsworth",
+            "Steven Buchanan"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L3-07",
+      "level": 3,
+      "tags": [
+        "join",
+        "conditional-agg"
+      ],
+      "ko": "배송사별 지연 배송 건수와 지연율(%)을 지연율이 높은 순서로 보여주세요. 지연은 요청일보다 늦게 배송된 경우이며 미배송 주문은 제외합니다.",
+      "hint": "지연 = shipped_date > required_date. 미배송 주문 제외.",
+      "sql": "SELECT s.company_name AS shipper, COUNT(*) FILTER (WHERE o.shipped_date > o.required_date) AS late_orders, ROUND(100.0 * COUNT(*) FILTER (WHERE o.shipped_date > o.required_date) / COUNT(*), 2) AS late_pct FROM orders o JOIN shippers s ON s.shipper_id = o.ship_via WHERE o.shipped_date IS NOT NULL GROUP BY s.company_name ORDER BY late_pct DESC;",
+      "seq": 22,
+      "output": [
+        "배송사명",
+        "지연 건수",
+        "지연율(%)"
+      ],
+      "expected": {
+        "columns": [
+          "shipper",
+          "late_orders",
+          "late_pct"
+        ],
+        "row_count": 3,
+        "rows": [
+          [
+            "United Package",
+            16,
+            5.08
+          ],
+          [
+            "Speedy Express",
+            12,
+            4.9
+          ],
+          [
+            "Federal Shipping",
+            9,
+            3.61
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L3-08",
+      "level": 3,
+      "tags": [
+        "4-way-join",
+        "string-agg"
+      ],
+      "ko": "직원별 담당 지역(Region)과 담당 테리토리 수를 보여주세요.",
+      "hint": "employees → employee_territories → territories → region. 일부 Northwind 배포본은 region_description에 공백 패딩이 있어 TRIM 권장.",
+      "sql": "SELECT e.first_name || ' ' || e.last_name AS employee_name, STRING_AGG(DISTINCT TRIM(r.region_description), ', ') AS regions, COUNT(*) AS territory_count FROM employees e JOIN employee_territories et ON et.employee_id = e.employee_id JOIN territories t ON t.territory_id = et.territory_id JOIN region r ON r.region_id = t.region_id GROUP BY e.employee_id, e.first_name, e.last_name ORDER BY e.employee_id;",
+      "seq": 23,
+      "output": [
+        "이름",
+        "담당 지역",
+        "테리토리 수"
+      ],
+      "expected": {
+        "columns": [
+          "employee_name",
+          "regions",
+          "territory_count"
+        ],
+        "row_count": 9,
+        "rows": [
+          [
+            "Nancy Davolio",
+            "Eastern",
+            2
+          ],
+          [
+            "Andrew Fuller",
+            "Eastern",
+            7
+          ],
+          [
+            "Janet Leverling",
+            "Southern",
+            4
+          ],
+          [
+            "Margaret Peacock",
+            "Eastern",
+            3
+          ],
+          [
+            "Steven Buchanan",
+            "Eastern",
+            7
+          ],
+          [
+            "Michael Suyama",
+            "Western",
+            5
+          ],
+          [
+            "Robert King",
+            "Western",
+            10
+          ],
+          [
+            "Laura Callahan",
+            "Northern",
+            4
+          ],
+          [
+            "Anne Dodsworth",
+            "Northern",
+            7
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L4-01",
+      "level": 4,
+      "tags": [
+        "not-exists",
+        "anti-join"
+      ],
+      "ko": "한 번도 주문하지 않은 고객사의 회사명을 회사명 순서로 보여주세요.",
+      "sql": "SELECT c.company_name FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.customer_id) ORDER BY c.company_name;",
+      "seq": 24,
+      "output": [
+        "회사명"
+      ],
+      "expected": {
+        "columns": [
+          "company_name"
+        ],
+        "row_count": 2,
+        "rows": [
+          [
+            "FISSA Fabrica Inter. Salchichas S.A."
+          ],
+          [
+            "Paris spécialités"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L4-02",
+      "level": 4,
+      "tags": [
+        "scalar-subquery"
+      ],
+      "ko": "전체 평균 단가보다 비싼 제품의 제품명과 단가를 단가가 높은 순서로 보여주세요.",
+      "sql": "SELECT product_name, unit_price FROM products WHERE unit_price > (SELECT AVG(unit_price) FROM products) ORDER BY unit_price DESC;",
+      "seq": 25,
+      "output": [
+        "제품명",
+        "단가"
+      ],
+      "expected": {
+        "columns": [
+          "product_name",
+          "unit_price"
+        ],
+        "row_count": 25,
+        "rows": [
+          [
+            "Côte de Blaye",
+            263.5
+          ],
+          [
+            "Thüringer Rostbratwurst",
+            123.79
+          ],
+          [
+            "Mishi Kobe Niku",
+            97.0
+          ],
+          [
+            "Sir Rodney's Marmalade",
+            81.0
+          ],
+          [
+            "Carnarvon Tigers",
+            62.5
+          ],
+          [
+            "Raclette Courdavault",
+            55.0
+          ],
+          [
+            "Manjimup Dried Apples",
+            53.0
+          ],
+          [
+            "Tarte au sucre",
+            49.3
+          ],
+          [
+            "Ipoh Coffee",
+            46.0
+          ],
+          [
+            "Rössle Sauerkraut",
+            45.6
+          ],
+          [
+            "Vegie-spread",
+            43.9
+          ],
+          [
+            "Schoggi Schokolade",
+            43.9
+          ],
+          [
+            "Northwoods Cranberry Sauce",
+            40.0
+          ],
+          [
+            "Alice Mutton",
+            39.0
+          ],
+          [
+            "Gnocchi di nonna Alice",
+            38.0
+          ],
+          [
+            "Queso Manchego La Pastora",
+            38.0
+          ],
+          [
+            "Gudbrandsdalsost",
+            36.0
+          ],
+          [
+            "Mozzarella di Giovanni",
+            34.8
+          ],
+          [
+            "Camembert Pierrot",
+            34.0
+          ],
+          [
+            "Wimmers gute Semmelknödel",
+            33.25
+          ],
+          [
+            "Perth Pasties",
+            32.8
+          ],
+          [
+            "Mascarpone Fabioli",
+            32.0
+          ],
+          [
+            "Gumbär Gummibärchen",
+            31.23
+          ],
+          [
+            "Ikura",
+            31.0
+          ],
+          [
+            "Uncle Bob's Organic Dried Pears",
+            30.0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L4-03",
+      "level": 4,
+      "tags": [
+        "distinct-on",
+        "pg-specific"
+      ],
+      "ko": "카테고리마다 단가가 가장 비싼 제품 하나씩, 카테고리명, 제품명, 단가를 카테고리명 순서로 보여주세요.",
+      "sql": "SELECT DISTINCT ON (c.category_name) c.category_name, p.product_name, p.unit_price FROM products p JOIN categories c ON c.category_id = p.category_id ORDER BY c.category_name, p.unit_price DESC, p.product_name;",
+      "seq": 26,
+      "output": [
+        "카테고리명",
+        "제품명",
+        "단가"
+      ],
+      "expected": {
+        "columns": [
+          "category_name",
+          "product_name",
+          "unit_price"
+        ],
+        "row_count": 8,
+        "rows": [
+          [
+            "Beverages",
+            "Côte de Blaye",
+            263.5
+          ],
+          [
+            "Condiments",
+            "Vegie-spread",
+            43.9
+          ],
+          [
+            "Confections",
+            "Sir Rodney's Marmalade",
+            81.0
+          ],
+          [
+            "Dairy Products",
+            "Raclette Courdavault",
+            55.0
+          ],
+          [
+            "Grains/Cereals",
+            "Gnocchi di nonna Alice",
+            38.0
+          ],
+          [
+            "Meat/Poultry",
+            "Thüringer Rostbratwurst",
+            123.79
+          ],
+          [
+            "Produce",
+            "Manjimup Dried Apples",
+            53.0
+          ],
+          [
+            "Seafood",
+            "Carnarvon Tigers",
+            62.5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L4-04",
+      "level": 4,
+      "tags": [
+        "window",
+        "rank",
+        "share"
+      ],
+      "ko": "1997년 매출 상위 10개 고객사의 순위, 회사명, 매출, 1997년 전체 매출 대비 비중(%)을 보여주세요.",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.",
+      "sql": "WITH cust AS (SELECT c.company_name, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_date >= DATE '1997-01-01' AND o.order_date < DATE '1998-01-01' GROUP BY c.company_name) SELECT RANK() OVER (ORDER BY revenue DESC) AS rnk, company_name, ROUND(revenue::numeric, 2) AS revenue, ROUND((100 * revenue / SUM(revenue) OVER ())::numeric, 2) AS share_pct FROM cust ORDER BY rnk LIMIT 10;",
+      "seq": 27,
+      "output": [
+        "순위",
+        "회사명",
+        "매출",
+        "비중(%)"
+      ],
+      "expected": {
+        "columns": [
+          "rnk",
+          "company_name",
+          "revenue",
+          "share_pct"
+        ],
+        "row_count": 10,
+        "rows": [
+          [
+            1,
+            "QUICK-Stop",
+            61109.91,
+            9.9
+          ],
+          [
+            2,
+            "Save-a-lot Markets",
+            57713.57,
+            9.35
+          ],
+          [
+            3,
+            "Ernst Handel",
+            48096.26,
+            7.79
+          ],
+          [
+            4,
+            "Mère Paillarde",
+            23332.31,
+            3.78
+          ],
+          [
+            5,
+            "Hungry Owl All-Night Grocers",
+            20454.4,
+            3.31
+          ],
+          [
+            6,
+            "Rattlesnake Canyon Grocery",
+            19383.75,
+            3.14
+          ],
+          [
+            7,
+            "Simons bistro",
+            16232.41,
+            2.63
+          ],
+          [
+            8,
+            "Berglunds snabbköp",
+            13849.01,
+            2.24
+          ],
+          [
+            9,
+            "HILARION-Abastos",
+            13482.74,
+            2.18
+          ],
+          [
+            10,
+            "Folk och fä HB",
+            13314.67,
+            2.16
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L4-05",
+      "level": 4,
+      "tags": [
+        "window",
+        "lag",
+        "growth"
+      ],
+      "ko": "1997년 월별로 월, 매출, 전월 대비 매출 증감률(%)을 월 순서로 보여주세요. 1월의 증감률은 비워 둡니다.",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.",
+      "sql": "WITH m AS (SELECT DATE_TRUNC('month', o.order_date)::date AS month, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id WHERE o.order_date >= DATE '1997-01-01' AND o.order_date < DATE '1998-01-01' GROUP BY 1) SELECT month, ROUND(revenue::numeric, 2) AS revenue, ROUND((100 * (revenue - LAG(revenue) OVER (ORDER BY month)) / LAG(revenue) OVER (ORDER BY month))::numeric, 2) AS mom_pct FROM m ORDER BY month;",
+      "seq": 28,
+      "output": [
+        "월",
+        "매출",
+        "전월 대비 증감률(%)"
+      ],
+      "expected": {
+        "columns": [
+          "month",
+          "revenue",
+          "mom_pct"
+        ],
+        "row_count": 12,
+        "rows": [
+          [
+            "1997-01-01",
+            61258.07,
+            null
+          ],
+          [
+            "1997-02-01",
+            38483.63,
+            -37.18
+          ],
+          [
+            "1997-03-01",
+            38547.22,
+            0.17
+          ],
+          [
+            "1997-04-01",
+            53032.95,
+            37.58
+          ],
+          [
+            "1997-05-01",
+            53781.29,
+            1.41
+          ],
+          [
+            "1997-06-01",
+            36362.8,
+            -32.39
+          ],
+          [
+            "1997-07-01",
+            51020.86,
+            40.31
+          ],
+          [
+            "1997-08-01",
+            47287.67,
+            -7.32
+          ],
+          [
+            "1997-09-01",
+            55629.24,
+            17.64
+          ],
+          [
+            "1997-10-01",
+            66749.23,
+            19.99
+          ],
+          [
+            "1997-11-01",
+            43533.81,
+            -34.78
+          ],
+          [
+            "1997-12-01",
+            71398.43,
+            64.01
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L4-06",
+      "level": 4,
+      "tags": [
+        "window",
+        "partition",
+        "top1-per-group"
+      ],
+      "ko": "국가별 매출 1위 고객사의 국가, 회사명, 매출을 매출이 높은 순서로 보여주세요.",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.",
+      "sql": "WITH r AS (SELECT c.country, c.company_name, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue, ROW_NUMBER() OVER (PARTITION BY c.country ORDER BY SUM(od.unit_price * od.quantity * (1 - od.discount)) DESC) AS rn FROM orders o JOIN order_details od ON od.order_id = o.order_id JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.country, c.company_name) SELECT country, company_name, ROUND(revenue::numeric, 2) AS revenue FROM r WHERE rn = 1 ORDER BY revenue DESC;",
+      "seq": 29,
+      "output": [
+        "국가",
+        "회사명",
+        "매출"
+      ],
+      "expected": {
+        "columns": [
+          "country",
+          "company_name",
+          "revenue"
+        ],
+        "row_count": 21,
+        "rows": [
+          [
+            "Germany",
+            "QUICK-Stop",
+            110277.31
+          ],
+          [
+            "Austria",
+            "Ernst Handel",
+            104874.98
+          ],
+          [
+            "USA",
+            "Save-a-lot Markets",
+            104361.95
+          ],
+          [
+            "Ireland",
+            "Hungry Owl All-Night Grocers",
+            49979.91
+          ],
+          [
+            "Brazil",
+            "Hanari Carnes",
+            32841.37
+          ],
+          [
+            "Sweden",
+            "Folk och fä HB",
+            29567.56
+          ],
+          [
+            "Canada",
+            "Mère Paillarde",
+            28872.19
+          ],
+          [
+            "Belgium",
+            "Suprêmes délices",
+            24088.78
+          ],
+          [
+            "Venezuela",
+            "HILARION-Abastos",
+            22768.76
+          ],
+          [
+            "France",
+            "Bon app'",
+            21963.25
+          ],
+          [
+            "Switzerland",
+            "Richter Supermarkt",
+            19343.78
+          ],
+          [
+            "Denmark",
+            "Simons bistro",
+            16817.1
+          ],
+          [
+            "UK",
+            "Seven Seas Imports",
+            16215.33
+          ],
+          [
+            "Finland",
+            "Wartian Herkku",
+            15648.7
+          ],
+          [
+            "Spain",
+            "Godos Cocina Típica",
+            11446.36
+          ],
+          [
+            "Mexico",
+            "Tortuga Restaurante",
+            10812.15
+          ],
+          [
+            "Italy",
+            "Magazzini Alimentari Riuniti",
+            7176.21
+          ],
+          [
+            "Portugal",
+            "Furia Bacalhau e Frutos do Mar",
+            6427.42
+          ],
+          [
+            "Norway",
+            "Santé Gourmet",
+            5735.15
+          ],
+          [
+            "Poland",
+            "Wolski  Zajazd",
+            3531.95
+          ],
+          [
+            "Argentina",
+            "Océano Atlántico Ltda.",
+            3460.2
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L4-07",
+      "level": 4,
+      "tags": [
+        "two-level-agg",
+        "cte"
+      ],
+      "ko": "주문당 평균 품목 수와 평균 주문 금액은?",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.",
+      "sql": "WITH per_order AS (SELECT od.order_id, COUNT(*) AS line_items, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS order_value FROM order_details od GROUP BY od.order_id) SELECT ROUND(AVG(line_items), 2) AS avg_line_items, ROUND(AVG(order_value)::numeric, 2) AS avg_order_value FROM per_order;",
+      "seq": 30,
+      "output": [
+        "주문당 평균 품목 수",
+        "평균 주문 금액"
+      ],
+      "expected": {
+        "columns": [
+          "avg_line_items",
+          "avg_order_value"
+        ],
+        "row_count": 1,
+        "rows": [
+          [
+            2.6,
+            1525.05
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L4-08",
+      "level": 4,
+      "tags": [
+        "date-diff",
+        "having"
+      ],
+      "ko": "주문을 5건 이상 한 고객사 중 평균 주문 간격(일)이 가장 짧은 10곳의 회사명과 평균 주문 간격을 보여주세요. 평균 주문 간격은 (마지막 주문일 - 첫 주문일) / (주문 건수 - 1)입니다.",
+      "hint": "평균 주문 간격 = (마지막 주문일 - 첫 주문일) / (주문 건수 - 1).",
+      "sql": "SELECT c.company_name, ROUND((MAX(o.order_date) - MIN(o.order_date))::numeric / (COUNT(*) - 1), 1) AS avg_days_between FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.company_name HAVING COUNT(*) >= 5 ORDER BY avg_days_between, c.company_name LIMIT 10;",
+      "seq": 31,
+      "output": [
+        "회사명",
+        "평균 주문 간격(일)"
+      ],
+      "expected": {
+        "columns": [
+          "company_name",
+          "avg_days_between"
+        ],
+        "row_count": 10,
+        "rows": [
+          [
+            "Save-a-lot Markets",
+            19.0
+          ],
+          [
+            "Ernst Handel",
+            22.7
+          ],
+          [
+            "QUICK-Stop",
+            22.9
+          ],
+          [
+            "Mère Paillarde",
+            31.5
+          ],
+          [
+            "Hungry Owl All-Night Grocers",
+            33.4
+          ],
+          [
+            "Berglunds snabbköp",
+            33.5
+          ],
+          [
+            "Bon app'",
+            35.4
+          ],
+          [
+            "Folk och fä HB",
+            35.7
+          ],
+          [
+            "Great Lakes Food Market",
+            35.9
+          ],
+          [
+            "Bottom-Dollar Markets",
+            37.7
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L4-09",
+      "level": 4,
+      "tags": [
+        "self-join",
+        "market-basket"
+      ],
+      "ko": "같은 주문에 함께 가장 많이 포함된 제품 쌍 10개의 두 제품명과 함께 주문된 횟수를 보여주세요.",
+      "sql": "SELECT p1.product_name AS product_a, p2.product_name AS product_b, COUNT(*) AS together_count FROM order_details a JOIN order_details b ON b.order_id = a.order_id AND b.product_id > a.product_id JOIN products p1 ON p1.product_id = a.product_id JOIN products p2 ON p2.product_id = b.product_id GROUP BY p1.product_name, p2.product_name ORDER BY together_count DESC, product_a, product_b LIMIT 10;",
+      "seq": 32,
+      "output": [
+        "제품명 A",
+        "제품명 B",
+        "함께 주문된 횟수"
+      ],
+      "expected": {
+        "columns": [
+          "product_a",
+          "product_b",
+          "together_count"
+        ],
+        "row_count": 10,
+        "rows": [
+          [
+            "Sir Rodney's Scones",
+            "Sirop d'érable",
+            8
+          ],
+          [
+            "Pavlova",
+            "Gorgonzola Telino",
+            7
+          ],
+          [
+            "Camembert Pierrot",
+            "Flotemysost",
+            6
+          ],
+          [
+            "Gorgonzola Telino",
+            "Mozzarella di Giovanni",
+            6
+          ],
+          [
+            "Nord-Ost Matjeshering",
+            "Tourtière",
+            6
+          ],
+          [
+            "Pavlova",
+            "Camembert Pierrot",
+            6
+          ],
+          [
+            "Pavlova",
+            "Tarte au sucre",
+            6
+          ],
+          [
+            "Alice Mutton",
+            "Geitost",
+            5
+          ],
+          [
+            "Chang",
+            "Gorgonzola Telino",
+            5
+          ],
+          [
+            "Chang",
+            "Pavlova",
+            5
+          ]
+        ]
+      }
+    },
+    {
+      "id": "L4-10",
+      "level": 4,
+      "tags": [
+        "window",
+        "running-total",
+        "abc"
+      ],
+      "ko": "전체 매출의 80%를 차지하는 A등급 제품은 몇 개인가요? 매출 내림차순 누적 비중이 80%에 처음 도달하는 제품까지 A등급입니다.",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 매출 내림차순 누적 비중이 80% 이하인 제품 + 80%를 처음 넘기는 제품까지 A등급.",
+      "sql": "WITH pr AS (SELECT od.product_id, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM order_details od GROUP BY od.product_id), cum AS (SELECT (SUM(revenue) OVER (ORDER BY revenue DESC, product_id) - revenue) / SUM(revenue) OVER () AS prev_share FROM pr) SELECT COUNT(*) AS class_a_products FROM cum WHERE prev_share < 0.8;",
+      "seq": 33,
+      "output": [
+        "A등급 제품 수"
+      ],
+      "expected": {
+        "columns": [
+          "class_a_products"
+        ],
+        "row_count": 1,
+        "rows": [
+          [
+            36
+          ]
+        ]
+      }
+    }
+  ],
+  "changes": [
+    {
+      "seq": 1,
+      "id": "L1-02",
+      "before_q": "단종된 제품 목록을 보여주세요.",
+      "after_q": "단종된 제품의 제품명을 제품명 순서로 보여주세요.",
+      "before_cols": [
+        "product_id",
+        "product_name"
+      ],
+      "after_cols": [
+        "product_name"
+      ],
+      "reason": "질문에 없는 product_id 제거 (P4)"
+    },
+    {
+      "seq": 2,
+      "id": "L1-03",
+      "before_q": "재고가 재주문 기준 아래로 떨어진 판매 중 제품은?",
+      "after_q": "판매 중인 제품 중 재고 수량이 재주문 기준보다 적은 제품의 제품명, 재고 수량, 재주문 기준을 제품명 순서로 보여주세요.",
+      "before_cols": [
+        "product_name",
+        "units_in_stock",
+        "reorder_level",
+        "units_on_order"
+      ],
+      "after_cols": [
+        "product_name",
+        "units_in_stock",
+        "reorder_level"
+      ],
+      "reason": "질문에 없는 units_on_order 제거, 조건 컬럼은 출력 항목으로 명시 (P1, P3)"
+    },
+    {
+      "seq": 3,
+      "id": "L1-04",
+      "before_q": "단가가 가장 비싼 제품 10개를 알려주세요.",
+      "after_q": "단가가 가장 비싼 제품 10개의 제품명과 단가를 보여주세요.",
+      "before_cols": [
+        "product_name",
+        "unit_price"
+      ],
+      "after_cols": [
+        "product_name",
+        "unit_price"
+      ],
+      "reason": "정렬 기준인 단가를 출력 항목으로 명시 (P3)"
+    },
+    {
+      "seq": 7,
+      "id": "L1-08",
+      "before_q": "운송비가 500달러 이상인 주문을 보여주세요.",
+      "after_q": "운송비가 500 이상인 주문의 주문번호, 주문일, 운송비를 운송비가 큰 순서로 보여주세요.",
+      "before_cols": [
+        "order_id",
+        "customer_id",
+        "order_date",
+        "freight"
+      ],
+      "after_cols": [
+        "order_id",
+        "order_date",
+        "freight"
+      ],
+      "reason": "질문에 없는 customer_id 제거, 출력 항목 명시 (P1, P4)"
+    },
+    {
+      "seq": 12,
+      "id": "L2-05",
+      "before_q": "연도별 매출과 주문 건수 추이를 보여주세요.",
+      "after_q": "연도별 매출과 주문 건수를 연도 순서로 보여주세요.",
+      "before_cols": [
+        "year",
+        "order_count",
+        "revenue"
+      ],
+      "after_cols": [
+        "year",
+        "revenue",
+        "order_count"
+      ],
+      "reason": "질문 순서(매출 → 주문 건수)와 컬럼 순서 일치 (P2)"
+    },
+    {
+      "seq": 14,
+      "id": "L2-07",
+      "before_q": "주문을 20건 이상 한 고객사는 어디인가요?",
+      "after_q": "주문을 20건 이상 한 고객사의 회사명과 주문 건수를 주문 건수가 많은 순서로 보여주세요.",
+      "before_cols": [
+        "company_name",
+        "order_count"
+      ],
+      "after_cols": [
+        "company_name",
+        "order_count"
+      ],
+      "reason": "조건 컬럼(주문 건수)을 출력 항목으로 명시 (P3)"
+    },
+    {
+      "seq": 15,
+      "id": "L2-08",
+      "before_q": "전체 주문 중 요청일보다 늦게 배송된 주문의 비율은?",
+      "after_q": "배송된 주문 중 요청일보다 늦게 배송된 주문의 비율(%)은 얼마인가요?",
+      "before_cols": [
+        "late_orders",
+        "shipped_orders",
+        "late_pct"
+      ],
+      "after_cols": [
+        "late_pct"
+      ],
+      "reason": "질문에 없는 근거 건수 2개 제거 (P5)"
+    },
+    {
+      "seq": 16,
+      "id": "L3-01",
+      "before_q": "1997년 매출 상위 5개 고객사는?",
+      "after_q": "1997년 매출 상위 5개 고객사의 회사명, 국가, 매출을 보여주세요.",
+      "before_cols": [
+        "company_name",
+        "country",
+        "revenue"
+      ],
+      "after_cols": [
+        "company_name",
+        "country",
+        "revenue"
+      ],
+      "reason": "질문에 없던 국가·매출을 출력 항목으로 명시 (P1, P3)"
+    },
+    {
+      "seq": 17,
+      "id": "L3-02",
+      "before_q": "1997년 직원별 판매 실적(매출, 주문 건수)을 보여주세요.",
+      "after_q": "1997년 직원별 매출과 주문 건수를 매출이 높은 순서로 보여주세요.",
+      "before_cols": [
+        "employee_name",
+        "order_count",
+        "revenue"
+      ],
+      "after_cols": [
+        "employee_name",
+        "revenue",
+        "order_count"
+      ],
+      "reason": "질문 순서(매출 → 주문 건수)와 컬럼 순서 일치 (P2)"
+    },
+    {
+      "seq": 19,
+      "id": "L3-04",
+      "before_q": "판매 수량 기준으로 가장 많이 팔린 제품 10개는?",
+      "after_q": "판매 수량이 가장 많은 제품 10개의 제품명과 판매 수량을 보여주세요.",
+      "before_cols": [
+        "product_name",
+        "total_quantity"
+      ],
+      "after_cols": [
+        "product_name",
+        "total_quantity"
+      ],
+      "reason": "정렬 기준인 판매 수량을 출력 항목으로 명시 (P3)"
+    },
+    {
+      "seq": 21,
+      "id": "L3-06",
+      "before_q": "각 직원과 그 직원의 상사 이름을 보여주세요.",
+      "after_q": "각 직원의 이름과 상사 이름을 직원 ID 순서로 보여주세요. 상사가 없는 직원도 포함합니다.",
+      "before_cols": [
+        "employee_name",
+        "title",
+        "manager_name"
+      ],
+      "after_cols": [
+        "employee_name",
+        "manager_name"
+      ],
+      "reason": "질문에 없는 title 제거, 행 순서 명시 (P1, P7)"
+    },
+    {
+      "seq": 22,
+      "id": "L3-07",
+      "before_q": "배송사별로 지연 배송 건수와 지연율을 비교해 주세요.",
+      "after_q": "배송사별 지연 배송 건수와 지연율(%)을 지연율이 높은 순서로 보여주세요. 지연은 요청일보다 늦게 배송된 경우이며 미배송 주문은 제외합니다.",
+      "before_cols": [
+        "shipper",
+        "late_orders",
+        "shipped_orders",
+        "late_pct"
+      ],
+      "after_cols": [
+        "shipper",
+        "late_orders",
+        "late_pct"
+      ],
+      "reason": "질문에 없는 배송 건수 제거 (P5)"
+    },
+    {
+      "seq": 24,
+      "id": "L4-01",
+      "before_q": "한 번도 주문하지 않은 고객사는?",
+      "after_q": "한 번도 주문하지 않은 고객사의 회사명을 회사명 순서로 보여주세요.",
+      "before_cols": [
+        "customer_id",
+        "company_name",
+        "country"
+      ],
+      "after_cols": [
+        "company_name"
+      ],
+      "reason": "질문에 없는 customer_id, country 제거 (P1, P4)"
+    },
+    {
+      "seq": 25,
+      "id": "L4-02",
+      "before_q": "전체 평균 단가보다 비싼 제품은 몇 개이고 어떤 것들인가요?",
+      "after_q": "전체 평균 단가보다 비싼 제품의 제품명과 단가를 단가가 높은 순서로 보여주세요.",
+      "before_cols": [
+        "product_name",
+        "unit_price"
+      ],
+      "after_cols": [
+        "product_name",
+        "unit_price"
+      ],
+      "reason": "개수와 목록을 동시에 묻던 질문을 목록 하나로 정리 (P6)"
+    },
+    {
+      "seq": 26,
+      "id": "L4-03",
+      "before_q": "카테고리마다 가장 비싼 제품 하나씩 보여주세요.",
+      "after_q": "카테고리마다 단가가 가장 비싼 제품 하나씩, 카테고리명, 제품명, 단가를 카테고리명 순서로 보여주세요.",
+      "before_cols": [
+        "category_name",
+        "product_name",
+        "unit_price"
+      ],
+      "after_cols": [
+        "category_name",
+        "product_name",
+        "unit_price"
+      ],
+      "reason": "단가를 출력 항목으로 명시 (P3)"
+    },
+    {
+      "seq": 27,
+      "id": "L4-04",
+      "before_q": "1997년 고객사 매출 순위 상위 10곳과 전체 매출 대비 비중을 보여주세요.",
+      "after_q": "1997년 매출 상위 10개 고객사의 순위, 회사명, 매출, 1997년 전체 매출 대비 비중(%)을 보여주세요.",
+      "before_cols": [
+        "rnk",
+        "company_name",
+        "revenue",
+        "share_pct"
+      ],
+      "after_cols": [
+        "rnk",
+        "company_name",
+        "revenue",
+        "share_pct"
+      ],
+      "reason": "순위·매출을 출력 항목으로 명시 (P3, P5)"
+    },
+    {
+      "seq": 28,
+      "id": "L4-05",
+      "before_q": "1997년 월별 매출과 전월 대비 증감률을 보여주세요.",
+      "after_q": "1997년 월별로 월, 매출, 전월 대비 매출 증감률(%)을 월 순서로 보여주세요. 1월의 증감률은 비워 둡니다.",
+      "before_cols": [
+        "month",
+        "revenue",
+        "mom_pct"
+      ],
+      "after_cols": [
+        "month",
+        "revenue",
+        "mom_pct"
+      ],
+      "reason": "출력 항목과 1월 처리 명시. 전월 매출은 묻지 않으므로 내지 않음 (P1, P5)"
+    },
+    {
+      "seq": 29,
+      "id": "L4-06",
+      "before_q": "국가별로 매출 1위 고객사를 알려주세요.",
+      "after_q": "국가별 매출 1위 고객사의 국가, 회사명, 매출을 매출이 높은 순서로 보여주세요.",
+      "before_cols": [
+        "country",
+        "company_name",
+        "revenue"
+      ],
+      "after_cols": [
+        "country",
+        "company_name",
+        "revenue"
+      ],
+      "reason": "순위 기준인 매출을 출력 항목으로 명시 (P3)"
+    },
+    {
+      "seq": 31,
+      "id": "L4-08",
+      "before_q": "주문을 5건 이상 한 고객 중 평균 주문 간격이 가장 짧은 10곳은?",
+      "after_q": "주문을 5건 이상 한 고객사 중 평균 주문 간격(일)이 가장 짧은 10곳의 회사명과 평균 주문 간격을 보여주세요. 평균 주문 간격은 (마지막 주문일 - 첫 주문일) / (주문 건수 - 1)입니다.",
+      "before_cols": [
+        "company_name",
+        "order_count",
+        "first_order",
+        "last_order",
+        "avg_days_between"
+      ],
+      "after_cols": [
+        "company_name",
+        "avg_days_between"
+      ],
+      "reason": "질문에 없는 주문 건수·첫/마지막 주문일 제거 (P1, P3)"
+    },
+    {
+      "seq": 32,
+      "id": "L4-09",
+      "before_q": "같은 주문에서 함께 가장 많이 팔린 제품 조합 Top 10은?",
+      "after_q": "같은 주문에 함께 가장 많이 포함된 제품 쌍 10개의 두 제품명과 함께 주문된 횟수를 보여주세요.",
+      "before_cols": [
+        "product_a",
+        "product_b",
+        "together_count"
+      ],
+      "after_cols": [
+        "product_a",
+        "product_b",
+        "together_count"
+      ],
+      "reason": "정렬 기준인 횟수를 출력 항목으로 명시 (P3)"
+    },
+    {
+      "seq": 33,
+      "id": "L4-10",
+      "before_q": "전체 매출의 80%를 차지하는 핵심 제품(ABC 분석 A등급)은 몇 개인가요?",
+      "after_q": "전체 매출의 80%를 차지하는 A등급 제품은 몇 개인가요? 매출 내림차순 누적 비중이 80%에 처음 도달하는 제품까지 A등급입니다.",
+      "before_cols": [
+        "class_a_products",
+        "total_products"
+      ],
+      "after_cols": [
+        "class_a_products"
+      ],
+      "reason": "질문에 없는 전체 제품 수 제거, A등급 정의를 질문에 포함 (P6)"
+    }
+  ]
+}

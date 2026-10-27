@@ -1,7 +1,7 @@
 [
  {
   "id": 4,
-  "target_name": null,
+  "target_name": "BIRD",
   "schema_name": null,
   "rule_type": "generation_constraint",
   "definition": {
@@ -421,7 +421,7 @@
   "schema_name": null,
   "rule_type": "generation_constraint",
   "definition": {
-   "text": "반올림할 때는 값을 NUMERIC으로 바꾸세요: ROUND(CAST(값 AS NUMERIC), 자릿수). PostgreSQL의 ROUND(값, 자릿수)는 REAL·DOUBLE에 쓸 수 없습니다."
+   "text": "반올림할 때는 값을 NUMERIC으로 바꾸세요: ROUND(CAST(값 AS NUMERIC), 자릿수)."
   },
   "enabled": true
  },
@@ -442,6 +442,46 @@
   "rule_type": "generation_constraint",
   "definition": {
    "text": "테이블 이름 앞에 스키마 이름(public. 등)을 붙이지 마세요."
+  },
+  "enabled": true
+ },
+ {
+  "id": 63,
+  "target_name": "northwind",
+  "schema_name": null,
+  "rule_type": "generation_constraint",
+  "definition": {
+   "text": "결과에 ID 컬럼은 넣지 말고 이름을 쓰세요. 직원 이름은 first_name || ' ' || last_name 한 컬럼으로 쓰세요. SELECT * 는 쓰지 마세요."
+  },
+  "enabled": true
+ },
+ {
+  "id": 65,
+  "target_name": "northwind",
+  "schema_name": null,
+  "rule_type": "advisory_guard",
+  "definition": {
+   "kind": "fanout_count"
+  },
+  "enabled": true
+ },
+ {
+  "id": 66,
+  "target_name": "northwind",
+  "schema_name": null,
+  "rule_type": "canonicalization",
+  "definition": {
+   "kind": "order_by_tiebreak"
+  },
+  "enabled": true
+ },
+ {
+  "id": 67,
+  "target_name": "northwind",
+  "schema_name": null,
+  "rule_type": "generation_constraint",
+  "definition": {
+   "text": "나눗셈은 나누기 전에 분자를 NUMERIC으로 바꾸세요: CAST(분자 AS NUMERIC) / 분모."
   },
   "enabled": true
  }

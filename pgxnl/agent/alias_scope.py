@@ -32,63 +32,79 @@ class UnresolvedAlias:
     def message(self) -> str:
         seen = ", ".join(self.visible) if self.visible else "(없음)"
         return (
-            f"SQL을 다시 작성하세요. 바깥 쿼리가 {self.alias} 을(를) 참조하는데 그 별칭은 "
-            f"서브쿼리 **안에서만** 정의됩니다 — 실행하면 "
+            f"SQL을 다시 작성하세요. {self.alias} 을(를) 참조하는데 그 별칭은 다른 서브쿼리나 CTE "
+            f"**안에서만** 정의됩니다 — 실행하면 "
             f'missing FROM-clause entry for table "{self.alias}" 로 실패합니다. '
-            f"바깥에서 쓸 수 있는 별칭은 {seen} 입니다. 서브쿼리가 내보낸 컬럼을 "
+            f"그 자리에서 쓸 수 있는 별칭은 {seen} 입니다. 서브쿼리·CTE가 내보낸 컬럼을 "
             f"그 별칭으로 참조하세요."
         )
 
 
 def find_unresolved_aliases(stmt: Any) -> list[UnresolvedAlias]:
-    """서브쿼리 안에서만 선언된 별칭을 바깥이 참조하면 돌려준다. 없으면 빈 리스트.
+    """참조한 자리에서 보이지 않는 별칭을 돌려준다. 없으면 빈 리스트.
 
-    토큰 인덱스 범위로 스코프를 가른다 — 서브쿼리 노드의 [start, stop] 안에 있으면
-    안쪽, 밖이면 바깥이다. `alias_to_table`은 평면 dict라 이 구분을 못 한다.
+    토큰 인덱스 범위로 스코프를 가른다 — 서브쿼리 `( SELECT … )` 와 CTE 본문 `WITH x AS ( … )` 가
+    각각 스코프다. 한 자리에서 보이는 별칭은 그 자리를 **감싸는** 스코프(자기 자신과 바깥들)에서
+    선언된 것뿐이다. 형제 스코프(다른 CTE)나 안쪽 스코프의 별칭은 보이지 않는다.
+    `alias_to_table`은 평면 dict라 이 구분을 못 한다.
+
+    CTE 본문은 문법상 `select_with_parens` 가 아니다 — 처음엔 서브쿼리만 스코프로 봐서 Northwind v2
+    run 565 의 seq 27(CTE 안의 `c` 를 바깥 SELECT 에서 참조)·33(한 CTE 의 `od` 를 다른 CTE 에서
+    참조)을 놓쳤다. 둘 다 실행에서 죽었다.
     """
     if stmt is None or getattr(stmt, "raw_tree", None) is None:
         return []
     from pgxnl.grammar.generated.PostgreSQLParser import PostgreSQLParser as _P
     from pgxnl.parsing.ir_builder import collect_contexts
 
-    subqueries = [
+    scopes = [
         (c.start.tokenIndex, c.stop.tokenIndex)
         for c in collect_contexts(stmt.raw_tree, _P.Select_with_parensContext)
     ]
-    if not subqueries:
-        return []  # 서브쿼리가 없으면 스코프가 하나뿐이라 이 오류가 날 수 없다
+    for cte in collect_contexts(stmt.raw_tree, _P.Common_table_exprContext):
+        body = cte.preparablestmt() if hasattr(cte, "preparablestmt") else None
+        if body is not None:
+            scopes.append((body.start.tokenIndex, body.stop.tokenIndex))
+    if not scopes:
+        return []  # 스코프가 하나뿐이면 이 오류가 날 수 없다
+    root = (-1, 1 << 30)
 
-    def inside(idx: int) -> bool:
-        return any(lo <= idx <= hi for lo, hi in subqueries)
+    def innermost(idx: int) -> tuple[int, int]:
+        holding = [s for s in scopes if s[0] <= idx <= s[1]]
+        return min(holding, key=lambda s: s[1] - s[0]) if holding else root
 
-    inner: set[str] = set()
-    outer: set[str] = set()
+    def encloses(scope: tuple[int, int], idx: int) -> bool:
+        return scope[0] <= idx <= scope[1]
+
+    declared: dict[str, list[tuple[int, int]]] = {}
     for a in collect_contexts(stmt.raw_tree, _P.Alias_clauseContext):
         colid = a.colid() if hasattr(a, "colid") else None
         if colid is None:
             continue
         name = colid.getText().strip('"').lower()
-        (inner if inside(a.start.tokenIndex) else outer).add(name)
+        declared.setdefault(name, []).append(innermost(a.start.tokenIndex))
 
-    # FROM에 직접 쓴 테이블 이름(별칭 없이)도 바깥에서 참조 가능하다.
+    # FROM에 직접 쓴 테이블 이름(별칭 없이)도 그 스코프에서 참조 가능하다.
     for r in collect_contexts(stmt.raw_tree, _P.Relation_exprContext):
         qn = r.qualified_name() if hasattr(r, "qualified_name") else None
         if qn is None:
             continue
         name = qn.getText().rsplit(".", 1)[-1].strip('"').lower()
-        (inner if inside(r.start.tokenIndex) else outer).add(name)
+        declared.setdefault(name, []).append(innermost(r.start.tokenIndex))
 
     out: list[UnresolvedAlias] = []
     seen: set[str] = set()
     for ref in collect_contexts(stmt.raw_tree, _P.ColumnrefContext):
-        if inside(ref.start.tokenIndex):
-            continue  # 안쪽 참조는 안쪽 별칭을 써도 된다
         colid = ref.colid() if hasattr(ref, "colid") else None
         if colid is None or ref.indirection() is None:
             continue  # 한정되지 않은 컬럼(`school`)은 스코프 판정 대상이 아니다
         alias = colid.getText().strip('"').lower()
-        if alias in outer or alias in seen or alias not in inner:
+        idx = ref.start.tokenIndex
+        if alias in seen or alias not in declared:
+            continue  # 선언이 아예 없으면 다른 검사(존재하지 않는 별칭)의 몫이다
+        if any(encloses(s, idx) for s in declared[alias]):
             continue
         seen.add(alias)
-        out.append(UnresolvedAlias(alias, tuple(sorted(outer))))
+        visible = sorted(n for n, ss in declared.items() if any(encloses(s, idx) for s in ss))
+        out.append(UnresolvedAlias(alias, tuple(visible)))
     return out

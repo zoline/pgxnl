@@ -114,6 +114,14 @@ async def test_subquery_is_skipped(validator):
 
 
 @pytest.mark.asyncio
+async def test_cte_is_skipped(validator):
+    """CTE 별칭은 안쪽 테이블로 잘못 묶여 멀쩡한 CTE 컬럼을 거부했다(Northwind v2 run 567 seq 27)."""
+    sql = ("WITH cr AS (SELECT T2.school, COUNT(*) AS n FROM frpm T1 JOIN schools T2 "
+           "ON T1.cdscode = T2.cdscode GROUP BY T2.school) SELECT x.school, x.n FROM cr x")
+    assert (await decide(validator, sql)).decision is Decision.ALLOWED
+
+
+@pytest.mark.asyncio
 async def test_where_clause_column_is_checked(validator):
     sql = "SELECT T2.school FROM frpm T1 JOIN schools T2 ON T1.cdscode = T2.cdscode WHERE T1.charternum = '1'"
     r = await decide(validator, sql)

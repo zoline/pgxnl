@@ -59,6 +59,34 @@ def test_bare_table_name_in_outer_from_is_visible(parser):
         "(SELECT T1.cdscode FROM frpm AS T1)")) == []
 
 
+def test_cte_inner_alias_used_outside_is_flagged(parser):
+    """Northwind v2 run 565 seq 27: CTE 안의 `c` 를 바깥 SELECT 에서 참조. CTE 본문은
+    select_with_parens 가 아니라 처음엔 스코프로 안 봤다."""
+    out = find_unresolved_aliases(parser.parse(
+        "WITH cr AS (SELECT c.customer_id, SUM(o.freight) AS revenue FROM customers c "
+        "JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_id) "
+        "SELECT c.company_name, x.revenue FROM cr x"))
+    assert [u.alias for u in out] == ["c"]
+    assert "x" in out[0].visible and "c" not in out[0].visible
+
+
+def test_alias_of_sibling_cte_is_flagged(parser):
+    """seq 33: 한 CTE 의 `od` 를 다른 CTE 에서 참조 — 형제 스코프는 보이지 않는다."""
+    out = find_unresolved_aliases(parser.parse(
+        "WITH pr AS (SELECT od.product_id, SUM(od.quantity) AS revenue FROM order_details od "
+        "GROUP BY od.product_id), ranked AS (SELECT od.product_id, p.revenue FROM pr p) "
+        "SELECT COUNT(*) FROM ranked"))
+    assert [u.alias for u in out] == ["od"]
+
+
+def test_correlated_subquery_sees_outer_alias(parser):
+    """안쪽은 바깥 별칭을 볼 수 있다(상관 서브쿼리) — CTE 를 스코프로 넣어도 이건 그대로다."""
+    assert find_unresolved_aliases(parser.parse(
+        "WITH t AS (SELECT o.customer_id FROM orders o WHERE o.freight > "
+        "(SELECT AVG(o2.freight) FROM orders o2 WHERE o2.customer_id = o.customer_id)) "
+        "SELECT t.customer_id FROM t")) == []
+
+
 def test_unqualified_column_is_not_flagged(parser):
     """한정되지 않은 컬럼은 스코프 판정 대상이 아니다 — 파서가 어디 것인지 모른다."""
     assert find_unresolved_aliases(parser.parse(

@@ -580,7 +580,9 @@ dvdrental 이면:
 ### 6.5 Northwind 평가 (한글 골든 세트)
 
 BIRD 와 같은 평가 하네스로 **Northwind**(무역 회사 주문 DB, 14 테이블)를 한글 질문 34개로 잰다.
-관리 화면 왼쪽 **BIRD → Northwind 평가** 메뉴. 문항 원본은 `docs/northwind_golden_set.md`.
+관리 화면 왼쪽 **BIRD → Northwind 평가** 메뉴. 문항 원본은 `docs/northwind_golden_set_v2.md` — 질문만 보고
+출력 컬럼과 순서를 알 수 있게 다시 쓴 판이다(원칙 P1~P8: 질문에 적힌 항목만·적힌 순서대로, ID 는 'ID'라 적을 때만 등).
+첫 판(`docs/northwind_golden_set.md`)은 gold 마다 덧붙인 컬럼이 제각각이라 질문만으로는 정답 컬럼을 알 수 없었다.
 
 1. 대상 DB 만들기 — 원본 데이터(1996-07 ~ 1998-05)를 받아 날짜를 **+28년** 옮겨 적재한다
    (2024-07 ~ 2026-05, 기준일 2026-05-06). 28년마다 요일·윤년이 같아 연·월·요일 집계가 바뀌지 않는다.
@@ -588,27 +590,33 @@ BIRD 와 같은 평가 하네스로 **Northwind**(무역 회사 주문 DB, 14 �
    sudo -u postgres scripts/load_northwind_db.sh            # GitHub 에서 받아 northwind DB 로
    ```
 2. 읽기 전용 role 권한(5.5 절 dvdrental 예시와 같은 public 스키마 권한)을 주고, 대상 이름 **`northwind`** 로
-   등록한다 — Northwind 기준 정보(규칙 #60~62)가 이 이름으로 묶여 있다.
+   등록한다 — Northwind 기준 정보(규칙 #60~67)가 이 이름으로 묶여 있다.
 3. `tools/seed_import.py` 로 기준 정보를 가져온 뒤 **BIRD → Northwind 평가 → 평가 시작**.
 
 데이터셋 `data/northwind_pg.json` 은 `tools/northwind_dataset.py` 로 골든 세트에서 만든다(연도 1996~1998 → 2024~2026,
-hint → evidence, 금액 반올림 안내 추가, L1·L2 simple / L3 moderate / L4 challenging). `--verify <DSN>` 을 주면 gold 34개를
-DB 에서 실행해 골든 세트의 기대 결과와 대조한다.
+hint → evidence, gold 의 `ROUND(…, n)` 자릿수에 맞춰 금액·평균 일수 반올림 안내 추가, L1·L2 simple / L3 moderate /
+L4 challenging). `--verify <DSN>` 을 주면 gold 34개를 DB 에서 실행해 골든 세트의 기대 결과와 대조한다.
 
 Northwind 전용 규칙(`northwind` 대상):
 
-| 규칙 | 내용 | 이유 |
-|---|---|---|
-| #60 | 반올림은 `ROUND(CAST(값 AS NUMERIC), 자릿수)` | 가격·할인이 `real` 이라 `ROUND(real, 2)` 가 없다 — 12문항이 실행 오류였다 |
-| #61 | 테이블 별칭은 머리글자(o, od), 계산값에 뜻 있는 별칭, CTE 별칭은 겹치지 않게 | 골든 세트의 SQL 모양 |
-| #62 | 테이블 앞에 스키마 이름(`public.`)을 붙이지 않는다 | 읽기 쉬움(채점과 무관) |
+| 규칙 | 종류 | 내용 | 이유 |
+|---|---|---|---|
+| #60 | 프롬프트 | 반올림은 `ROUND(CAST(값 AS NUMERIC), 자릿수)` | 가격·할인이 `real` 이라 `ROUND(real, 2)` 가 없다 — 12문항이 실행 오류였다 |
+| #61 | 프롬프트 | 테이블 별칭은 머리글자(o, od), 계산값에 뜻 있는 별칭, CTE 별칭은 겹치지 않게 | 골든 세트의 SQL 모양 |
+| #62 | 프롬프트 | 테이블 앞에 스키마 이름(`public.`)을 붙이지 않는다 | 읽기 쉬움 |
+| #63 | 프롬프트 | 결과에 ID 대신 이름, 직원 이름은 `first_name \|\| ' ' \|\| last_name` 한 컬럼, `SELECT *` 금지 | 골든 세트 원칙 P4 |
+| #65 | 조언형 가드 | `fanout_count` — 1쪽 키를 세면서 N쪽 자식과 조인해 COUNT 가 부풀면 한 번 알린다 | 주문 건수가 order_details 조인으로 2.6배가 됐다 |
+| #66 | 코드 정규화 | `order_by_tiebreak` — `ORDER BY … LIMIT` 에 결과의 단순 컬럼을 동점 기준으로 붙인다 | Top N 경계 동점에서 잘리는 행이 매번 달랐다 |
+| #67 | 프롬프트 | 나눗셈은 나누기 전에 분자를 `NUMERIC` 으로 | 날짜 차이 ÷ 건수가 정수 나눗셈이 돼 소수점이 버려졌다 |
 
-BIRD 전용으로 좁힌 전역 규칙: #6(불필요한 CTE 금지), #13(T1·T2 별칭), #36(질문이 요구한 값만 SELECT).
-이 셋은 BIRD gold 의 모양에 맞춘 것이라 다른 DB 에서는 걸지 않는다.
+BIRD 전용으로 좁힌 전역 규칙: #4(나눗셈 `CAST AS REAL`), #6(불필요한 CTE 금지), #13(T1·T2 별칭),
+#36(질문이 요구한 값만 SELECT). BIRD gold 의 모양에 맞춘 것이라 다른 DB 에서는 걸지 않는다 — 특히 #4 의
+`REAL` 은 #60 과 부딪혀 `round(double precision, integer)` 실행 오류를 냈다.
 
-첫 측정(2026-10-27, 질문 보강 켬): 기준선 7/34 → 규칙 #60~62·전역 규칙 범위 조정 후 **12/34(공식 13/34)**.
-남은 오답은 대부분 **결과 컬럼 선택** 차이다 — 골든 세트 gold 는 답과 함께 판단 근거(단가, 주문 건수 등)를 보여 주고
-직원 이름을 한 컬럼으로 합치는데, 모델은 컬럼을 덜 내거나 다르게 나눈다. EX 는 컬럼 구성까지 같아야 맞는다.
+측정(2026-10-27, 질문 보강 켬): 첫 판 골든 세트 7/34 → 12/34. 골든 세트 v2 로 바꾼 뒤 27/34 →
+**31/34(공식 32/34, run 568)**. 이 과정에서 CTE 를 쓴 SQL 을 pgxnl 이 망가뜨리던 버그 둘(별칭 교정 규칙과 컬럼 검증이
+CTE 별칭을 안쪽 테이블로 오인)을 찾아 고쳤다. 남은 오답: `DISTINCT` 누락(공식 채점은 정답), 월을 날짜 대신 숫자로 냄,
+"국가별 1위"를 `LIMIT 1` 로 풂.
 
 ## 7. 운영
 

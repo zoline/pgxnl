@@ -1226,6 +1226,17 @@ class Orchestrator:
                             " ".join(r.message() for r in redundant),
                         )
 
+                # 1쪽 키를 세면서 N쪽 자식과 조인해 개수가 부푸는 경우(팬아웃). 1쪽 개수인지
+                # N쪽 개수인지는 질문에 달려 있어 사실만 알린다(agent/fanout_count.py).
+                if "fanout_count" not in advised:
+                    fanout = await self._check_fanout_counts(stmt, schema)
+                    if fanout:
+                        advised.add("fanout_count")
+                        last_sql[1] = provided_sql  # 조언형 — 모델이 고치지 않고 끝내면 이 SQL을 쓴다
+                        return await _fired(
+                            "fanout_count(1:N 조인으로 부푼 COUNT)", " ".join(f.message() for f in fanout),
+                        )
+
                 if "grouped_rows" not in advised and await self._check_grouped_rows(stmt, question, schema):
                     from pgxnl.agent.grouped_rows import MESSAGE as _GROUPED_MSG
                     advised.add("grouped_rows")
@@ -1515,6 +1526,57 @@ class Orchestrator:
             )
         except Exception:  # 가드 실패는 질의를 죽일 사유가 아니다
             logger.warning("불필요 조인 가드 실패, 건너뜁니다", exc_info=True)
+            return []
+
+    async def _check_fanout_counts(self, stmt: Any, schema: str) -> list:
+        """1:N 조인으로 부푼 COUNT(fanout_count 규칙, 2026-10-27). 규칙이 없으면 아무 일도 안 한다.
+
+        유일성은 대상 DB 카탈로그로 본다 — 컬럼 하나짜리 UNIQUE 인덱스(PK 포함) 또는 n_distinct = -1.
+        """
+        if self._rule_store is None:
+            return []
+        try:
+            rules = [
+                r for r in await self._rule_store.list_advisory_guards(self._target_name, schema=schema)
+                if isinstance(r.definition, dict) and r.definition.get("kind") == "fanout_count"
+            ]
+            if not rules:
+                return []
+            ir = self._parser.to_ir(stmt)
+            if ir is None:
+                return []
+            from pgxnl.agent.fanout_count import find_fanout_counts
+
+            async def _is_unique(table: str, column: str) -> bool | None:
+                # alias_to_table 은 `public.orders` 처럼 스키마를 붙인 채로 온다 — 붙어 있으면 그쪽을 따른다
+                sch, _, name = table.replace('"', "").rpartition(".")
+                rows = await self._conn.execute_readonly(
+                    """
+                    SELECT EXISTS (
+                             SELECT 1 FROM pg_index i
+                             JOIN pg_class c ON c.oid = i.indrelid
+                             JOIN pg_namespace n ON n.oid = c.relnamespace
+                             JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = i.indkey[0]
+                             WHERE i.indisunique AND i.indnkeyatts = 1 AND n.nspname = $1
+                               AND lower(c.relname) = lower($2) AND lower(a.attname) = lower($3)
+                           ) AS uniq,
+                           (SELECT n_distinct FROM pg_stats
+                             WHERE schemaname = $1 AND lower(tablename) = lower($2)
+                               AND lower(attname) = lower($3) LIMIT 1) AS nd
+                    """,
+                    params=[sch or schema, name, column], timeout_seconds=15, schema=schema,
+                )
+                if not rows:
+                    return None
+                if rows[0]["uniq"] or rows[0]["nd"] == -1:
+                    return True
+                return False if rows[0]["nd"] is not None else None
+
+            return await find_fanout_counts(
+                ir, alias_to_table=dict(stmt.alias_to_table or {}), is_unique=_is_unique,
+            )
+        except Exception:  # 가드 실패는 질의를 죽일 사유가 아니다
+            logger.warning("fanout_count 가드 실패, 건너뜁니다", exc_info=True)
             return []
 
     async def _check_grouped_rows(self, stmt: Any, question: str, schema: str) -> bool:
