@@ -11,7 +11,7 @@
  },
  {
   "id": 6,
-  "target_name": null,
+  "target_name": "BIRD",
   "schema_name": null,
   "rule_type": "generation_constraint",
   "definition": {
@@ -54,7 +54,7 @@
  },
  {
   "id": 13,
-  "target_name": null,
+  "target_name": "BIRD",
   "schema_name": null,
   "rule_type": "generation_constraint",
   "definition": {
@@ -195,7 +195,7 @@
  },
  {
   "id": 36,
-  "target_name": null,
+  "target_name": "BIRD",
   "schema_name": null,
   "rule_type": "generation_constraint",
   "definition": {
@@ -412,6 +412,36 @@
   "rule_type": "generation_constraint",
   "definition": {
    "text": "evidence가 float로 캐스트하라고 하면 AS FLOAT를 쓰세요."
+  },
+  "enabled": true
+ },
+ {
+  "id": 60,
+  "target_name": "northwind",
+  "schema_name": null,
+  "rule_type": "generation_constraint",
+  "definition": {
+   "text": "반올림할 때는 값을 NUMERIC으로 바꾸세요: ROUND(CAST(값 AS NUMERIC), 자릿수). PostgreSQL의 ROUND(값, 자릿수)는 REAL·DOUBLE에 쓸 수 없습니다."
+  },
+  "enabled": true
+ },
+ {
+  "id": 61,
+  "target_name": "northwind",
+  "schema_name": null,
+  "rule_type": "generation_constraint",
+  "definition": {
+   "text": "테이블 별칭은 테이블 이름의 머리글자로 짧게 쓰세요(orders → o, order_details → od). 계산한 값에는 뜻이 드러나는 별칭을 붙이세요(revenue, order_count). CTE·서브쿼리 별칭은 테이블 별칭과 겹치지 않게 쓰세요."
+  },
+  "enabled": true
+ },
+ {
+  "id": 62,
+  "target_name": "northwind",
+  "schema_name": null,
+  "rule_type": "generation_constraint",
+  "definition": {
+   "text": "테이블 이름 앞에 스키마 이름(public. 등)을 붙이지 마세요."
   },
   "enabled": true
  }

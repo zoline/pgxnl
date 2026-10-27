@@ -1,0 +1,274 @@
+[
+ {
+  "question_id": "L1-01",
+  "db_id": "public",
+  "question": "독일에 있는 고객사는 몇 곳인가요?",
+  "evidence": "",
+  "SQL": "SELECT COUNT(*) AS customer_count FROM customers WHERE country = 'Germany';",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L1-02",
+  "db_id": "public",
+  "question": "단종된 제품 목록을 보여주세요.",
+  "evidence": "products.discontinued = 1 이면 단종.",
+  "SQL": "SELECT product_id, product_name FROM products WHERE discontinued = 1 ORDER BY product_name;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L1-03",
+  "db_id": "public",
+  "question": "재고가 재주문 기준 아래로 떨어진 판매 중 제품은?",
+  "evidence": "판매 중 = discontinued = 0. 재주문 기준 = reorder_level.",
+  "SQL": "SELECT product_name, units_in_stock, reorder_level, units_on_order FROM products WHERE discontinued = 0 AND units_in_stock < reorder_level ORDER BY product_name;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L1-04",
+  "db_id": "public",
+  "question": "단가가 가장 비싼 제품 10개를 알려주세요.",
+  "evidence": "",
+  "SQL": "SELECT product_name, unit_price FROM products ORDER BY unit_price DESC, product_name LIMIT 10;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L1-05",
+  "db_id": "public",
+  "question": "국가별 고객 수를 많은 순으로 보여주세요.",
+  "evidence": "",
+  "SQL": "SELECT country, COUNT(*) AS customer_count FROM customers GROUP BY country ORDER BY customer_count DESC, country;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L1-06",
+  "db_id": "public",
+  "question": "2025년에 접수된 주문은 몇 건인가요?",
+  "evidence": "",
+  "SQL": "SELECT COUNT(*) AS order_count FROM orders WHERE order_date >= DATE '2025-01-01' AND order_date < DATE '2026-01-01';",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L1-07",
+  "db_id": "public",
+  "question": "직원들의 이름, 직책, 입사일을 입사 순서대로 보여주세요.",
+  "evidence": "",
+  "SQL": "SELECT first_name || ' ' || last_name AS employee_name, title, hire_date FROM employees ORDER BY hire_date, employee_id;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L1-08",
+  "db_id": "public",
+  "question": "운송비가 500달러 이상인 주문을 보여주세요.",
+  "evidence": "",
+  "SQL": "SELECT order_id, customer_id, order_date, freight FROM orders WHERE freight >= 500 ORDER BY freight DESC;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L2-01",
+  "db_id": "public",
+  "question": "카테고리별 제품 수와 평균 단가를 알려주세요.",
+  "evidence": "금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "SELECT c.category_name, COUNT(*) AS product_count, ROUND(AVG(p.unit_price)::numeric, 2) AS avg_unit_price FROM products p JOIN categories c ON c.category_id = p.category_id GROUP BY c.category_name ORDER BY c.category_name;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L2-02",
+  "db_id": "public",
+  "question": "2025년 월별 주문 건수를 보여주세요.",
+  "evidence": "",
+  "SQL": "SELECT EXTRACT(MONTH FROM order_date)::int AS month, COUNT(*) AS order_count FROM orders WHERE order_date >= DATE '2025-01-01' AND order_date < DATE '2026-01-01' GROUP BY 1 ORDER BY 1;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L2-03",
+  "db_id": "public",
+  "question": "배송사별 주문 건수와 평균 운송비는?",
+  "evidence": "orders.ship_via = shippers.shipper_id. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "SELECT s.company_name AS shipper, COUNT(*) AS order_count, ROUND(AVG(o.freight)::numeric, 2) AS avg_freight FROM orders o JOIN shippers s ON s.shipper_id = o.ship_via GROUP BY s.company_name ORDER BY s.company_name;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L2-04",
+  "db_id": "public",
+  "question": "2025년 총 매출은 얼마인가요?",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "SELECT ROUND(SUM(od.unit_price * od.quantity * (1 - od.discount))::numeric, 2) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id WHERE o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01';",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L2-05",
+  "db_id": "public",
+  "question": "연도별 매출과 주문 건수 추이를 보여주세요.",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "SELECT EXTRACT(YEAR FROM o.order_date)::int AS year, COUNT(DISTINCT o.order_id) AS order_count, ROUND(SUM(od.unit_price * od.quantity * (1 - od.discount))::numeric, 2) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id GROUP BY 1 ORDER BY 1;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L2-06",
+  "db_id": "public",
+  "question": "공급업체 국가별로 공급하는 제품 수는?",
+  "evidence": "",
+  "SQL": "SELECT s.country, COUNT(*) AS product_count FROM products p JOIN suppliers s ON s.supplier_id = p.supplier_id GROUP BY s.country ORDER BY product_count DESC, s.country;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L2-07",
+  "db_id": "public",
+  "question": "주문을 20건 이상 한 고객사는 어디인가요?",
+  "evidence": "",
+  "SQL": "SELECT c.company_name, COUNT(*) AS order_count FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.company_name HAVING COUNT(*) >= 20 ORDER BY order_count DESC, c.company_name;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L2-08",
+  "db_id": "public",
+  "question": "전체 주문 중 요청일보다 늦게 배송된 주문의 비율은?",
+  "evidence": "지연 = shipped_date > required_date. 미배송(shipped_date IS NULL) 주문은 제외. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "SELECT COUNT(*) FILTER (WHERE shipped_date > required_date) AS late_orders, COUNT(*) AS shipped_orders, ROUND(100.0 * COUNT(*) FILTER (WHERE shipped_date > required_date) / COUNT(*), 2) AS late_pct FROM orders WHERE shipped_date IS NOT NULL;",
+  "difficulty": "simple"
+ },
+ {
+  "question_id": "L3-01",
+  "db_id": "public",
+  "question": "2025년 매출 상위 5개 고객사는?",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "SELECT c.company_name, c.country, ROUND(SUM(od.unit_price * od.quantity * (1 - od.discount))::numeric, 2) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' GROUP BY c.company_name, c.country ORDER BY revenue DESC LIMIT 5;",
+  "difficulty": "moderate"
+ },
+ {
+  "question_id": "L3-02",
+  "db_id": "public",
+  "question": "2025년 직원별 판매 실적(매출, 주문 건수)을 보여주세요.",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "SELECT e.first_name || ' ' || e.last_name AS employee_name, COUNT(DISTINCT o.order_id) AS order_count, ROUND(SUM(od.unit_price * od.quantity * (1 - od.discount))::numeric, 2) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id JOIN employees e ON e.employee_id = o.employee_id WHERE o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' GROUP BY e.employee_id, e.first_name, e.last_name ORDER BY revenue DESC;",
+  "difficulty": "moderate"
+ },
+ {
+  "question_id": "L3-03",
+  "db_id": "public",
+  "question": "카테고리별 전체 매출을 높은 순으로 보여주세요.",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "SELECT c.category_name, ROUND(SUM(od.unit_price * od.quantity * (1 - od.discount))::numeric, 2) AS revenue FROM order_details od JOIN products p ON p.product_id = od.product_id JOIN categories c ON c.category_id = p.category_id GROUP BY c.category_name ORDER BY revenue DESC;",
+  "difficulty": "moderate"
+ },
+ {
+  "question_id": "L3-04",
+  "db_id": "public",
+  "question": "판매 수량 기준으로 가장 많이 팔린 제품 10개는?",
+  "evidence": "",
+  "SQL": "SELECT p.product_name, SUM(od.quantity) AS total_quantity FROM order_details od JOIN products p ON p.product_id = od.product_id GROUP BY p.product_name ORDER BY total_quantity DESC, p.product_name LIMIT 10;",
+  "difficulty": "moderate"
+ },
+ {
+  "question_id": "L3-05",
+  "db_id": "public",
+  "question": "해산물(Seafood) 제품을 공급하는 업체와 국가를 알려주세요.",
+  "evidence": "",
+  "SQL": "SELECT DISTINCT s.company_name, s.country FROM products p JOIN suppliers s ON s.supplier_id = p.supplier_id JOIN categories c ON c.category_id = p.category_id WHERE c.category_name = 'Seafood' ORDER BY s.company_name;",
+  "difficulty": "moderate"
+ },
+ {
+  "question_id": "L3-06",
+  "db_id": "public",
+  "question": "각 직원과 그 직원의 상사 이름을 보여주세요.",
+  "evidence": "employees.reports_to = 상사의 employee_id. 상사가 없는 직원도 포함.",
+  "SQL": "SELECT e.first_name || ' ' || e.last_name AS employee_name, e.title, m.first_name || ' ' || m.last_name AS manager_name FROM employees e LEFT JOIN employees m ON m.employee_id = e.reports_to ORDER BY e.employee_id;",
+  "difficulty": "moderate"
+ },
+ {
+  "question_id": "L3-07",
+  "db_id": "public",
+  "question": "배송사별로 지연 배송 건수와 지연율을 비교해 주세요.",
+  "evidence": "지연 = shipped_date > required_date. 미배송 주문 제외. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "SELECT s.company_name AS shipper, COUNT(*) FILTER (WHERE o.shipped_date > o.required_date) AS late_orders, COUNT(*) AS shipped_orders, ROUND(100.0 * COUNT(*) FILTER (WHERE o.shipped_date > o.required_date) / COUNT(*), 2) AS late_pct FROM orders o JOIN shippers s ON s.shipper_id = o.ship_via WHERE o.shipped_date IS NOT NULL GROUP BY s.company_name ORDER BY late_pct DESC;",
+  "difficulty": "moderate"
+ },
+ {
+  "question_id": "L3-08",
+  "db_id": "public",
+  "question": "직원별 담당 지역(Region)과 담당 테리토리 수를 보여주세요.",
+  "evidence": "employees → employee_territories → territories → region. 일부 Northwind 배포본은 region_description에 공백 패딩이 있어 TRIM 권장.",
+  "SQL": "SELECT e.first_name || ' ' || e.last_name AS employee_name, STRING_AGG(DISTINCT TRIM(r.region_description), ', ') AS regions, COUNT(*) AS territory_count FROM employees e JOIN employee_territories et ON et.employee_id = e.employee_id JOIN territories t ON t.territory_id = et.territory_id JOIN region r ON r.region_id = t.region_id GROUP BY e.employee_id, e.first_name, e.last_name ORDER BY e.employee_id;",
+  "difficulty": "moderate"
+ },
+ {
+  "question_id": "L4-01",
+  "db_id": "public",
+  "question": "한 번도 주문하지 않은 고객사는?",
+  "evidence": "",
+  "SQL": "SELECT c.customer_id, c.company_name, c.country FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.customer_id) ORDER BY c.company_name;",
+  "difficulty": "challenging"
+ },
+ {
+  "question_id": "L4-02",
+  "db_id": "public",
+  "question": "전체 평균 단가보다 비싼 제품은 몇 개이고 어떤 것들인가요?",
+  "evidence": "",
+  "SQL": "SELECT product_name, unit_price FROM products WHERE unit_price > (SELECT AVG(unit_price) FROM products) ORDER BY unit_price DESC;",
+  "difficulty": "challenging"
+ },
+ {
+  "question_id": "L4-03",
+  "db_id": "public",
+  "question": "카테고리마다 가장 비싼 제품 하나씩 보여주세요.",
+  "evidence": "",
+  "SQL": "SELECT DISTINCT ON (c.category_name) c.category_name, p.product_name, p.unit_price FROM products p JOIN categories c ON c.category_id = p.category_id ORDER BY c.category_name, p.unit_price DESC, p.product_name;",
+  "difficulty": "challenging"
+ },
+ {
+  "question_id": "L4-04",
+  "db_id": "public",
+  "question": "2025년 고객사 매출 순위 상위 10곳과 전체 매출 대비 비중을 보여주세요.",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "WITH cust AS (SELECT c.company_name, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' GROUP BY c.company_name) SELECT RANK() OVER (ORDER BY revenue DESC) AS rnk, company_name, ROUND(revenue::numeric, 2) AS revenue, ROUND((100 * revenue / SUM(revenue) OVER ())::numeric, 2) AS share_pct FROM cust ORDER BY rnk LIMIT 10;",
+  "difficulty": "challenging"
+ },
+ {
+  "question_id": "L4-05",
+  "db_id": "public",
+  "question": "2025년 월별 매출과 전월 대비 증감률을 보여주세요.",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "WITH m AS (SELECT DATE_TRUNC('month', o.order_date)::date AS month, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id WHERE o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' GROUP BY 1) SELECT month, ROUND(revenue::numeric, 2) AS revenue, ROUND((100 * (revenue - LAG(revenue) OVER (ORDER BY month)) / LAG(revenue) OVER (ORDER BY month))::numeric, 2) AS mom_pct FROM m ORDER BY month;",
+  "difficulty": "challenging"
+ },
+ {
+  "question_id": "L4-06",
+  "db_id": "public",
+  "question": "국가별로 매출 1위 고객사를 알려주세요.",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "WITH r AS (SELECT c.country, c.company_name, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue, ROW_NUMBER() OVER (PARTITION BY c.country ORDER BY SUM(od.unit_price * od.quantity * (1 - od.discount)) DESC) AS rn FROM orders o JOIN order_details od ON od.order_id = o.order_id JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.country, c.company_name) SELECT country, company_name, ROUND(revenue::numeric, 2) AS revenue FROM r WHERE rn = 1 ORDER BY revenue DESC;",
+  "difficulty": "challenging"
+ },
+ {
+  "question_id": "L4-07",
+  "db_id": "public",
+  "question": "주문당 평균 품목 수와 평균 주문 금액은?",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "WITH per_order AS (SELECT od.order_id, COUNT(*) AS line_items, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS order_value FROM order_details od GROUP BY od.order_id) SELECT ROUND(AVG(line_items), 2) AS avg_line_items, ROUND(AVG(order_value)::numeric, 2) AS avg_order_value FROM per_order;",
+  "difficulty": "challenging"
+ },
+ {
+  "question_id": "L4-08",
+  "db_id": "public",
+  "question": "주문을 5건 이상 한 고객 중 평균 주문 간격이 가장 짧은 10곳은?",
+  "evidence": "평균 주문 간격 = (마지막 주문일 - 첫 주문일) / (주문 건수 - 1). 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "SELECT c.company_name, COUNT(*) AS order_count, MIN(o.order_date) AS first_order, MAX(o.order_date) AS last_order, ROUND((MAX(o.order_date) - MIN(o.order_date))::numeric / (COUNT(*) - 1), 1) AS avg_days_between FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.company_name HAVING COUNT(*) >= 5 ORDER BY avg_days_between, c.company_name LIMIT 10;",
+  "difficulty": "challenging"
+ },
+ {
+  "question_id": "L4-09",
+  "db_id": "public",
+  "question": "같은 주문에서 함께 가장 많이 팔린 제품 조합 Top 10은?",
+  "evidence": "",
+  "SQL": "SELECT p1.product_name AS product_a, p2.product_name AS product_b, COUNT(*) AS together_count FROM order_details a JOIN order_details b ON b.order_id = a.order_id AND b.product_id > a.product_id JOIN products p1 ON p1.product_id = a.product_id JOIN products p2 ON p2.product_id = b.product_id GROUP BY p1.product_name, p2.product_name ORDER BY together_count DESC, product_a, product_b LIMIT 10;",
+  "difficulty": "challenging"
+ },
+ {
+  "question_id": "L4-10",
+  "db_id": "public",
+  "question": "전체 매출의 80%를 차지하는 핵심 제품(ABC 분석 A등급)은 몇 개인가요?",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 매출 내림차순 누적 비중이 80% 이하인 제품 + 80%를 처음 넘기는 제품까지 A등급.",
+  "SQL": "WITH pr AS (SELECT od.product_id, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM order_details od GROUP BY od.product_id), cum AS (SELECT product_id, revenue, SUM(revenue) OVER (ORDER BY revenue DESC, product_id) / SUM(revenue) OVER () AS cum_share, (SUM(revenue) OVER (ORDER BY revenue DESC, product_id) - revenue) / SUM(revenue) OVER () AS prev_share FROM pr) SELECT COUNT(*) AS class_a_products, (SELECT COUNT(*) FROM pr) AS total_products FROM cum WHERE prev_share < 0.8;",
+  "difficulty": "challenging"
+ }
+]

@@ -355,7 +355,8 @@ code{font-family:monospace;background:var(--panel2);padding:2px 4px;border-radiu
       </div>
       <div id="birdSection" class="hidden">
         <div class="nav-section-label">BIRD</div>
-        <button class="nav-sub" data-sub="eval" onclick="showAdmin('eval')">BIRD 평가</button>
+        <button class="nav-sub" data-sub="eval" onclick="showEval('bird')">BIRD 평가</button>
+        <button class="nav-sub" data-sub="eval-northwind" onclick="showEval('northwind')">Northwind 평가</button>
       </div>
       <button class="nav-tab" data-tab="mypage" onclick="showTab('mypage')">내 설정</button>
     </div>
@@ -1372,11 +1373,11 @@ code{font-family:monospace;background:var(--panel2);padding:2px 4px;border-radiu
       <!-- ── 관리: 문서 ── -->
       <!-- ── 관리: BIRD 평가 ── -->
       <div class="sub-panel" id="sub-eval">
-        <div class="section-title">BIRD 평가</div>
+        <div class="section-title" id="evalTitle">BIRD 평가</div>
         <div class="card">
           <div class="card-title">새 평가 실행</div>
           <div class="form-row">
-            <div class="form-group"><label>대상 DB <span class="dim" style="font-weight:400;">(BIRD 고정)</span></label>
+            <div class="form-group"><label>대상 DB <span class="dim" style="font-weight:400;" id="evalTargetNote">(BIRD 고정)</span></label>
               <select id="evalTarget" disabled></select></div>
             <div class="form-group"><label>스키마</label>
               <select id="evalSchema"><option value="">전체</option></select></div>
@@ -1387,11 +1388,11 @@ code{font-family:monospace;background:var(--panel2);padding:2px 4px;border-radiu
                 <option value="1" selected>1</option><option value="2">2</option>
                 <option value="3">3</option><option value="5">5</option>
               </select></div>
-            <div class="form-group"><label>BIRD JSON 파일 (선택)</label>
+            <div class="form-group"><label id="evalFileLabel">BIRD JSON 파일 (선택)</label>
               <input type="file" id="evalFile" accept=".json"></div>
             <button class="btn-action" onclick="startEval()">평가 시작</button>
           </div>
-          <div class="dim" style="font-size:var(--fs-md);margin-top:4px;">
+          <div class="dim" style="font-size:var(--fs-md);margin-top:4px;" id="evalHelp">
             각 문항의 "db_id" 필드가 실행 시 대상 스키마로 사용됩니다(없으면 public).
             파일을 선택하지 않으면 기본 BIRD MiniDev 데이터셋(500문항)으로 실행됩니다.
           </div>
@@ -1956,6 +1957,33 @@ function renderResultTable(rows){
 }
 
 const BIRD_TARGET='BIRD';
+// 평가 화면 두 가지 — 같은 하네스·채점, 대상 DB·기본 데이터셋·안내만 다르다(Northwind 2026-10-27).
+const EVAL_MODES={
+  bird:{title:'BIRD 평가',target:BIRD_TARGET,note:'(BIRD 고정)',runName:'bird-minidev',fileLabel:'BIRD JSON 파일 (선택)',
+    help:'각 문항의 "db_id" 필드가 실행 시 대상 스키마로 사용됩니다(없으면 public). 파일을 선택하지 않으면 기본 BIRD MiniDev 데이터셋(500문항)으로 실행됩니다.'},
+  northwind:{title:'Northwind 평가',target:'northwind',note:'(northwind 고정)',runName:'northwind',fileLabel:'평가 JSON 파일 (선택)',
+    help:'파일을 선택하지 않으면 Northwind 골든 세트(한글 34문항, 날짜는 +28년 옮겨 2024-07 ~ 2026-05, 기준일 2026-05-06)로 실행됩니다. 원본은 docs/northwind_golden_set.md.'},
+};
+let evalMode='bird', evalTargetsCache=[];
+function renderEvalTarget(){
+  const m=EVAL_MODES[evalMode];
+  const t=evalTargetsCache.find(x=>x.name===m.target);
+  $('evalTarget').innerHTML=t
+    ?`<option value="${esc(t.name)}">${esc(t.name)} (${esc(t.dialect)})</option>`
+    :`<option value="">'${esc(m.target)}' 대상 DB가 등록되지 않았습니다</option>`;
+}
+function showEval(mode){
+  evalMode=mode;
+  const m=EVAL_MODES[mode];
+  $('evalTitle').textContent=m.title; $('evalTargetNote').textContent=m.note;
+  $('evalRunName').placeholder=m.runName; $('evalFileLabel').textContent=m.fileLabel; $('evalHelp').textContent=m.help;
+  renderEvalTarget();
+  showAdmin('eval');
+  if(mode!=='bird'){   // showAdmin 은 data-sub="eval"(BIRD) 을 켜므로 모드 메뉴로 옮긴다
+    document.querySelectorAll('.nav-sub').forEach(el=>el.classList.remove('active'));
+    document.querySelector(`.nav-sub[data-sub="eval-${mode}"]`)?.classList.add('active');
+  }
+}
 async function loadTargets(){
   const r=await api('/api/targets');
   if(!r.ok)return;
@@ -1976,10 +2004,8 @@ async function loadTargets(){
   }
   // BIRD 평가는 BIRD 대상에만 의미가 있다(gold SQL·문항이 BIRD 스키마 기준) — 다른 DB를 고를 수
   // 없게 고정한다(2026-10-02 사용자 요청). 등록 안 됐으면 그 사실만 보인다.
-  const bird=targets.find(t=>t.name===BIRD_TARGET);
-  $('evalTarget').innerHTML=bird
-    ?`<option value="${esc(bird.name)}">${esc(bird.name)} (${esc(bird.dialect)})</option>`
-    :`<option value="">'${BIRD_TARGET}' 대상 DB가 등록되지 않았습니다</option>`;
+  evalTargetsCache=targets;
+  renderEvalTarget();
   if($('sugTarget')?.value) loadGlossSchemas('sugTarget','sugSchema');
   loadAnalyzeSqlSchemas();
   loadTuneSchemas();
@@ -5661,7 +5687,7 @@ async function startEval(){
   const concurrency=$('evalConcurrency').value;
   const schema=$('evalSchema').value;
   const form=new FormData(); if(file) form.append('file',file);
-  const params=new URLSearchParams({run_name,concurrency,schema});
+  const params=new URLSearchParams({run_name,concurrency,schema,dataset:evalMode});
   const r=await fetch(`/api/admin/targets/${encodeURIComponent(target)}/eval/runs?${params}`,{
     method:'POST', headers:{'X-API-Key':apiKey}, body:form});
   const j=await r.json().catch(()=>({}));

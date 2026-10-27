@@ -42,7 +42,7 @@ async def export(targets: list[str]) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--target", action="append", help="내보낼 대상 이름(여러 번 가능). 기본: BIRD")
+    ap.add_argument("--target", action="append", help="내보낼 대상 이름(여러 번 가능). 기본: BIRD, northwind")
     args = ap.parse_args()
     asyncio.run(export(args.target or list(DEFAULT_TARGETS)))
 

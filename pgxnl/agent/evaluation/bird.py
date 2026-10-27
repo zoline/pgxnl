@@ -27,6 +27,12 @@ _cancel_events: dict[int, asyncio.Event] = {}
 
 # 파일을 업로드하지 않았을 때 쓰는 번들 기본 BIRD MiniDev 데이터셋(500문항, db_id 포함).
 DEFAULT_BIRD_DATASET_PATH = Path(__file__).resolve().parent.parent.parent.parent / "data" / "bird_minidev_pg.json"
+# 평가 화면의 데이터셋 — 같은 평가 하네스(BIRD 형식 JSON)로 돈다. Northwind 는 docs/northwind_golden_set.json 을
+# tools/northwind_dataset.py 로 변환한 것(날짜 +28년, 한글 질문, 2026-10-27).
+DATASETS: dict[str, Path] = {
+    "bird": DEFAULT_BIRD_DATASET_PATH,
+    "northwind": DEFAULT_BIRD_DATASET_PATH.parent / "northwind_pg.json",
+}
 
 
 def request_cancel(run_id: int) -> None:

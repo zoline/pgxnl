@@ -14,7 +14,7 @@ from pathlib import Path
 SEED_DIR = Path(__file__).resolve().parent.parent / "seed"
 
 # 내보낼 대상: 전역(target_name NULL) + 이 이름들
-DEFAULT_TARGETS = ("BIRD",)
+DEFAULT_TARGETS = ("BIRD", "northwind")
 
 TABLES: dict[str, dict] = {
     "rules": {

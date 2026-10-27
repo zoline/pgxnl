@@ -1762,12 +1762,14 @@ async def list_target_schemas(name: str):
 
 @router.post("/targets/{name}/eval/runs")
 async def start_eval(
-    name: str, run_name: str = "", concurrency: int = 1, schema: str = "",
+    name: str, run_name: str = "", concurrency: int = 1, schema: str = "", dataset: str = "bird",
     file: UploadFile | None = File(None), admin: CurrentUser = Depends(require_admin),
 ):
-    from pgxnl.agent.evaluation.bird import (
-        DEFAULT_BIRD_DATASET_PATH, align_seq_to_default, parse_bird_json, run_evaluation,
-    )
+    from pgxnl.agent.evaluation.bird import DATASETS, align_seq_to_default, parse_bird_json, run_evaluation
+
+    dataset_path = DATASETS.get(dataset)
+    if dataset_path is None:
+        raise HTTPException(400, f"알 수 없는 데이터셋: {dataset} ({', '.join(DATASETS)})")
     from pgxnl.api.state import TargetNotFoundError, state
 
     eval_store = _require_eval_store()
@@ -1777,10 +1779,10 @@ async def start_eval(
     else:
         # 파일을 선택하지 않으면 번들된 기본 BIRD MiniDev 데이터셋으로 실행 —
         # 스키마 선택만으로 바로 평가를 돌릴 수 있게 한다.
-        if not DEFAULT_BIRD_DATASET_PATH.exists():
-            raise HTTPException(400, "파일을 선택하지 않았고 기본 BIRD 데이터셋도 찾을 수 없습니다")
-        raw = DEFAULT_BIRD_DATASET_PATH.read_bytes()
-        source_label = DEFAULT_BIRD_DATASET_PATH.name
+        if not dataset_path.exists():
+            raise HTTPException(400, f"파일을 선택하지 않았고 기본 데이터셋({dataset_path.name})도 찾을 수 없습니다")
+        raw = dataset_path.read_bytes()
+        source_label = dataset_path.name
 
     try:
         data = json.loads(raw)
@@ -1793,7 +1795,7 @@ async def start_eval(
     if not items:
         raise HTTPException(400, "평가 항목이 없습니다 (SQL/gold_sql 필드 확인)")
     if file is not None and file.filename:
-        items = align_seq_to_default(items)
+        items = align_seq_to_default(items, dataset_path)
 
     # schema가 지정되면 해당 db_id 문항만 실행 — "전체"(빈 문자열)면 파일 내 전체 문항 실행.
     if schema:
