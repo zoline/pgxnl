@@ -494,5 +494,35 @@
    "kind": "fanout_count"
   },
   "enabled": false
+ },
+ {
+  "id": 69,
+  "target_name": "northwind",
+  "schema_name": null,
+  "rule_type": "generation_constraint",
+  "definition": {
+   "text": "금액·비율은 소수 둘째 자리, 평균 일수는 소수 첫째 자리로 반올림하세요."
+  },
+  "enabled": true
+ },
+ {
+  "id": 70,
+  "target_name": "northwind",
+  "schema_name": null,
+  "rule_type": "canonicalization",
+  "definition": {
+   "kind": "round_numeric"
+  },
+  "enabled": true
+ },
+ {
+  "id": 71,
+  "target_name": "northwind",
+  "schema_name": null,
+  "rule_type": "advisory_guard",
+  "definition": {
+   "kind": "per_group_top"
+  },
+  "enabled": true
  }
 ]

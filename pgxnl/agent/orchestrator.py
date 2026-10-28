@@ -1243,6 +1243,12 @@ class Orchestrator:
                     last_sql[1] = provided_sql  # 조언형 — 모델이 고치지 않고 끝내면 이 SQL을 쓴다
                     return await _fired("grouped_rows(그룹별 행만 나옴)", _GROUPED_MSG)
 
+                if "per_group_top" not in advised and await self._check_per_group_top(stmt, question, schema):
+                    from pgxnl.agent.per_group_top import MESSAGE as _PER_GROUP_MSG
+                    advised.add("per_group_top")
+                    last_sql[1] = provided_sql  # 조언형 — 모델이 고치지 않고 끝내면 이 SQL을 쓴다
+                    return await _fired("per_group_top(그룹별 1위를 LIMIT 1 로 자름)", _PER_GROUP_MSG)
+
                 if "column_rationale" not in advised:
                     extra = await self._check_column_rationale(stmt, question, provided_sql, schema)
                     if extra:
@@ -1594,6 +1600,23 @@ class Orchestrator:
             return find_grouped_rows(stmt, question)
         except Exception:  # 가드 실패는 질의를 죽일 사유가 아니다
             logger.warning("grouped_rows 가드 실패, 건너뜁니다", exc_info=True)
+            return False
+
+    async def _check_per_group_top(self, stmt: Any, question: str, schema: str) -> bool:
+        """그룹별 1위를 묻는데 LIMIT 1 로 자른 SQL(per_group_top 규칙, 2026-10-28). 규칙이 없으면 아무 일도 안 한다."""
+        if self._rule_store is None:
+            return False
+        try:
+            rules = [
+                r for r in await self._rule_store.list_advisory_guards(self._target_name, schema=schema)
+                if isinstance(r.definition, dict) and r.definition.get("kind") == "per_group_top"
+            ]
+            if not rules:
+                return False
+            from pgxnl.agent.per_group_top import find_per_group_top
+            return find_per_group_top(stmt, question)
+        except Exception:  # 가드 실패는 질의를 죽일 사유가 아니다
+            logger.warning("per_group_top 가드 실패, 건너뜁니다", exc_info=True)
             return False
 
     async def _check_column_rationale(self, stmt: Any, question: str, sql: str, schema: str | None = None) -> Any:

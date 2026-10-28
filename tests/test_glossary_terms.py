@@ -104,6 +104,19 @@ def test_mentions_requires_every_token():
     assert not _mentions("unified district", "Unified School District")
 
 
+def test_korean_term_matches_with_particle():
+    """한글 등록어는 조사가 붙어도 걸려야 한다 — 예전엔 한글을 낱말로 치지 않아 늘 빠졌다."""
+    assert _mentions("2025년 월별 매출을 보여주세요", "매출")
+    assert _mentions("배송 지연이 많은 운송사", "배송 지연")
+    assert _glossary_relevant("국가별로 매출이 높은 고객사", entry("매출", "unit_price * quantity * (1 - discount)"))
+
+
+def test_korean_term_needs_a_left_boundary():
+    """앞에 다른 한글이 붙은 경우(부분 일치)는 걸지 않는다."""
+    assert not _mentions("총매출을 보여주세요", "매출")
+    assert not _glossary_relevant("주문 건수를 보여주세요", entry("매출", "unit_price * quantity"))
+
+
 def test_entry_without_column_name_still_matches_on_term():
     assert _glossary_relevant("what is the operating status?", entry("operating status", "Values: Active, Closed"))
 

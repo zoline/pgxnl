@@ -590,7 +590,7 @@ BIRD 와 같은 평가 하네스로 **Northwind**(무역 회사 주문 DB, 14 �
    sudo -u postgres scripts/load_northwind_db.sh            # GitHub 에서 받아 northwind DB 로
    ```
 2. 읽기 전용 role 권한(5.5 절 dvdrental 예시와 같은 public 스키마 권한)을 주고, 대상 이름 **`northwind`** 로
-   등록한다 — Northwind 기준 정보(규칙 #60~67)가 이 이름으로 묶여 있다.
+   등록한다 — Northwind 기준 정보(규칙 #60~71)가 이 이름으로 묶여 있다.
 3. `tools/seed_import.py` 로 기준 정보를 가져온 뒤 **BIRD → Northwind 평가 → 평가 시작**.
 
 데이터셋 `data/northwind_pg.json` 은 `tools/northwind_dataset.py` 로 골든 세트에서 만든다(연도 1996~1998 → 2024~2026,
@@ -608,6 +608,9 @@ Northwind 전용 규칙(`northwind` 대상):
 | #65 | 조언형 가드 | `fanout_count` — 1쪽 키를 세면서 N쪽 자식과 조인해 COUNT 가 부풀면 한 번 알린다 | 주문 건수가 order_details 조인으로 2.6배가 됐다 |
 | #66 | 코드 정규화 | `order_by_tiebreak` — `ORDER BY … LIMIT` 에 결과의 단순 컬럼을 동점 기준으로 붙인다 | Top N 경계 동점에서 잘리는 행이 매번 달랐다 |
 | #67 | 프롬프트 | 나눗셈은 나누기 전에 분자를 `NUMERIC` 으로 | 날짜 차이 ÷ 건수가 정수 나눗셈이 돼 소수점이 버려졌다 |
+| #69 | 프롬프트 | 금액·비율은 소수 둘째 자리, 평균 일수는 소수 첫째 자리로 반올림 | evidence 없이(MCP·화면 사용자) 돌리면 반올림 관례를 몰라 8문항이 틀렸다 |
+| #70 | 코드 정규화 | `round_numeric` — `ROUND(식, n)` 의 식을 `(식)::numeric` 으로 감싼다 | #60 이 있어도 `ROUND(CAST(a AS NUMERIC) / b, 2)` 처럼 double 과 다시 연산해 `round(double precision, integer)` 실행 오류 |
+| #71 | 조언형 가드 | `per_group_top` — "~별 … 1위" 질문인데 GROUP BY 키 둘 이상을 `LIMIT 1` 로 자르면 한 번 알린다 | "국가별로 매출 1위" 를 전체 1위 하나로 풀어 run 마다 갈렸다 |
 
 BIRD 전용으로 좁힌 전역 규칙: #4(나눗셈 `CAST AS REAL`), #6(불필요한 CTE 금지), #13(T1·T2 별칭),
 #36(질문이 요구한 값만 SELECT). BIRD gold 의 모양에 맞춘 것이라 다른 DB 에서는 걸지 않는다 — 특히 #4 의
@@ -619,6 +622,11 @@ CTE 별칭을 안쪽 테이블로 오인)을 찾아 고쳤다. 10-28: L4-06 질�
 **32/34(공식 33/34, run 578)** — 전에는 가끔 전체 1위 하나만 `LIMIT 1` 로 냈다. 이어 L4-05 의 월 표시 형식을
 힌트로 지정하고(`YYYY-MM`, gold 도 `TO_CHAR`) **33/34(공식 34/34, run 586)**. 월 형식은 지정한 문항만 따른다 — 지정 없는
 L2-02 는 월 번호. 남은 오답: `DISTINCT` 누락(공식 채점은 정답).
+
+evidence 없이 측정(10-28, 질문만 받는 MCP·화면 사용자 환경): 23/34(run 587). 매출 공식·주문일·배송사 연결 같은 스키마 지식은
+모델이 컬럼 이름만으로 맞혔고, 틀린 10문항 중 8개가 반올림 관례였다 → 용어집이 아니라 규칙 #69 로. 이어 #70·#71 을 더해
+**evidence 있이 34/34(run 592), 없이 32/34(run 593)**. evidence 없이 남은 오답은 조인 종류(`LEFT JOIN`)와 월 형식
+(`YYYY-MM` 은 질문에서 지정할 몫)이다.
 
 `fanout_count` 가드를 BIRD 에도 켜 봤으나(10-28, 규칙 #68, 꺼 둠) 4개 스키마 점수가 같았다. BIRD gold 는 팬아웃 33건 중
 DISTINCT 15 / 중복 유지 18 로 일관되지 않아 가드가 gold 반대쪽을 권하기도 한다.

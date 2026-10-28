@@ -1172,6 +1172,46 @@ class CountGroupsRule(CanonRule):
         ]
 
 
+class RoundNumericRule(CanonRule):
+    """`ROUND(식, n)` 의 식을 `(식)::numeric` 으로 감싼다.
+
+    사용자 결정(2026-10-28, northwind 전용). PostgreSQL 에는 `round(double precision, integer)` 가 없어
+    실행 오류가 난다. 프롬프트 규칙 #60("ROUND(CAST(값 AS NUMERIC), 자릿수)")이 있어도 모델이
+    `ROUND(CAST(a AS NUMERIC) / b * 100, 2)` 처럼 캐스트 뒤에 double 과 다시 연산해 Northwind L4-04 가
+    run 587·589 에서 실패했다. numeric 으로 바꿔 반올림하면 값은 같다. BIRD gold 는 REAL 결과를
+    기대하므로([[bird_gold_uses_real]]) 전역으로 두지 않는다.
+
+    인자가 정확히 둘일 때만, 첫 인자가 이미 `CAST(… AS NUMERIC)`·`…::numeric` 이면 그대로 둔다.
+    """
+
+    def collect_edits(self, stmt: ParsedStatement) -> list[TokenEdit]:
+        from pgxnl.grammar.generated.PostgreSQLParser import PostgreSQLParser as _P
+
+        if stmt.raw_tree is None:
+            return []
+        edits: list[TokenEdit] = []
+        stack = [stmt.raw_tree]
+        while stack:
+            node = stack.pop()
+            stack.extend(getattr(node, "children", None) or [])
+            if not isinstance(node, _P.Func_applicationContext) or node.getChildCount() != 4:
+                continue
+            name, lparen, args = node.getChild(0), node.getChild(1), node.getChild(2)
+            if name.getText().lower() != "round" or lparen.getText() != "(" \
+                    or not isinstance(args, _P.Func_arg_listContext):
+                continue
+            kids = list(args.children or [])
+            if len(kids) != 3 or kids[1].getText() != ",":
+                continue
+            first = kids[0]
+            text = first.getText().lower()
+            if re.fullmatch(r"cast\(.*asnumeric(\(\d+(,\d+)?\))?\)", text) or re.search(r"::numeric(\(\d+(,\d+)?\))?$", text):
+                continue
+            edits.append(TokenEdit(kind="insert_before", start_token_index=first.start.tokenIndex, text="("))
+            edits.append(TokenEdit(kind="insert_after", start_token_index=first.stop.tokenIndex, text=")::numeric"))
+        return edits
+
+
 class CastFloatRule(CanonRule):
     """지정한 컬럼을 `CAST(… AS REAL)`·`…::real` 로 바꿀 때 REAL 대신 FLOAT(double precision)를 쓴다.
 
@@ -1324,6 +1364,8 @@ def load_rules_from_store(
             rules.append(SubqueryEqToInRule())
         elif kind == "date_part_func":
             rules.append(DatePartFuncRule())
+        elif kind == "round_numeric":
+            rules.append(RoundNumericRule())
         elif kind == "cast_float":
             rules.append(CastFloatRule([str(c) for c in r.definition.get("columns") or []]))
         elif kind == "count_groups":

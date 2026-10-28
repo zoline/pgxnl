@@ -19,6 +19,7 @@ _CODE_VALUE_PATTERN = re.compile(r"([^\s,=]+)\s*=\s*([^,\n]+)")
 _VALUE_LIST_PATTERN = re.compile(r"(?P<label>values|값)\s*:\s*(?P<body>[^\n]+)", re.IGNORECASE)
 _CODE_PREFIX_PATTERN = re.compile(r"^['\"]?[A-Za-z0-9]{1,8}['\"]?\s*=\s*")
 _WORD_PATTERN = re.compile(r"[a-z0-9]+")
+_TOKEN_PATTERN = re.compile(r"[a-z0-9]+|[가-힣]+")
 
 #: 값 라벨로 인정하는 최소 길이. 두세 글자는 우연히 일치하기 쉬워 신호로 쓰지 않는다.
 MIN_VALUE_LENGTH = 4
@@ -32,13 +33,21 @@ def mentions(haystack_lower: str, phrase: str) -> bool:
     낱말 경계를 쓰는 이유: 'DOC' 같은 3글자 약어가 'document'/'doctor' 안에 부분
     일치하면 무관한 항목이 실린다. 순서를 안 보는 이유: 등록어 'average score in
     writing'을 질문이 'average writing score'로 쓰는 것까지 잡아야 하기 때문이다.
+
+    한글 낱말은 앞 경계만 본다 — 조사가 붙어("매출을", "매출이") 뒤 경계가 없다.
+    예전엔 [a-z0-9]만 낱말로 쳐서 한글 등록어는 어떤 질문에도 걸리지 않았다(2026-10-28,
+    Northwind). "총매출"처럼 앞에 붙은 합성어는 놓치지만, 과소 포함이 안전하다(is_relevant).
     """
-    tokens = _WORD_PATTERN.findall(phrase.lower())
+    tokens = _TOKEN_PATTERN.findall(phrase.lower())
     if not tokens:
         return False
-    return all(
-        re.search(rf"(?<![a-z0-9]){re.escape(t)}(?![a-z0-9])", haystack_lower) for t in tokens
-    )
+    return all(re.search(_token_regex(t), haystack_lower) for t in tokens)
+
+
+def _token_regex(token: str) -> str:
+    if "가" <= token[0] <= "힣":
+        return rf"(?<![가-힣]){re.escape(token)}"
+    return rf"(?<![a-z0-9]){re.escape(token)}(?![a-z0-9])"
 
 
 def aliases(term: str | None, column_name: str | None) -> list[str]:
