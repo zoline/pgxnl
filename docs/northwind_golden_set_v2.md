@@ -234,7 +234,7 @@ WITH m AS (SELECT DATE_TRUNC('month', o.order_date)::date AS month, SUM(od.unit_
 ### seq 29 (L4-06)
 
 - **이전 질문**: 국가별로 매출 1위 고객사를 알려주세요.
-- **새 질문**: 국가별 매출 1위 고객사의 국가, 회사명, 매출을 매출이 높은 순서로 보여주세요.
+- **새 질문**: 국가별로 매출 1위 고객사의 국가, 회사명, 매출을 매출이 높은 순서로 보여주세요.
 - **출력 항목**: 국가 → 회사명 → 매출
 - **컬럼**: `country, company_name, revenue` → `country, company_name, revenue`
 - **이유**: 순위 기준인 매출을 출력 항목으로 명시 (P3)

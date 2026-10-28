@@ -234,7 +234,7 @@
  {
   "question_id": "L4-06",
   "db_id": "public",
-  "question": "국가별 매출 1위 고객사의 국가, 회사명, 매출을 매출이 높은 순서로 보여주세요.",
+  "question": "국가별로 매출 1위 고객사의 국가, 회사명, 매출을 매출이 높은 순서로 보여주세요.",
   "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
   "SQL": "WITH r AS (SELECT c.country, c.company_name, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue, ROW_NUMBER() OVER (PARTITION BY c.country ORDER BY SUM(od.unit_price * od.quantity * (1 - od.discount)) DESC) AS rn FROM orders o JOIN order_details od ON od.order_id = o.order_id JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.country, c.company_name) SELECT country, company_name, ROUND(revenue::numeric, 2) AS revenue FROM r WHERE rn = 1 ORDER BY revenue DESC;",
   "difficulty": "challenging"

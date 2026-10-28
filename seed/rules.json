@@ -484,5 +484,15 @@
    "text": "나눗셈은 나누기 전에 분자를 NUMERIC으로 바꾸세요: CAST(분자 AS NUMERIC) / 분모."
   },
   "enabled": true
+ },
+ {
+  "id": 68,
+  "target_name": "BIRD",
+  "schema_name": null,
+  "rule_type": "advisory_guard",
+  "definition": {
+   "kind": "fanout_count"
+  },
+  "enabled": false
  }
 ]
