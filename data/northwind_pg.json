@@ -227,8 +227,8 @@
   "question_id": "L4-05",
   "db_id": "public",
   "question": "2025년 월별로 월, 매출, 전월 대비 매출 증감률(%)을 월 순서로 보여주세요. 1월의 증감률은 비워 둡니다.",
-  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
-  "SQL": "WITH m AS (SELECT DATE_TRUNC('month', o.order_date)::date AS month, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id WHERE o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' GROUP BY 1) SELECT month, ROUND(revenue::numeric, 2) AS revenue, ROUND((100 * (revenue - LAG(revenue) OVER (ORDER BY month)) / LAG(revenue) OVER (ORDER BY month))::numeric, 2) AS mom_pct FROM m ORDER BY month;",
+  "evidence": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 월은 YYYY-MM 형식(예: 2025-01)으로 표시한다. 금액(매출 등)은 소수 둘째 자리로 반올림한다.",
+  "SQL": "WITH m AS (SELECT TO_CHAR(o.order_date, 'YYYY-MM') AS month, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id WHERE o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' GROUP BY 1) SELECT month, ROUND(revenue::numeric, 2) AS revenue, ROUND((100 * (revenue - LAG(revenue) OVER (ORDER BY month)) / LAG(revenue) OVER (ORDER BY month))::numeric, 2) AS mom_pct FROM m ORDER BY month;",
   "difficulty": "challenging"
  },
  {

@@ -1776,8 +1776,8 @@
         "growth"
       ],
       "ko": "1997년 월별로 월, 매출, 전월 대비 매출 증감률(%)을 월 순서로 보여주세요. 1월의 증감률은 비워 둡니다.",
-      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.",
-      "sql": "WITH m AS (SELECT DATE_TRUNC('month', o.order_date)::date AS month, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id WHERE o.order_date >= DATE '1997-01-01' AND o.order_date < DATE '1998-01-01' GROUP BY 1) SELECT month, ROUND(revenue::numeric, 2) AS revenue, ROUND((100 * (revenue - LAG(revenue) OVER (ORDER BY month)) / LAG(revenue) OVER (ORDER BY month))::numeric, 2) AS mom_pct FROM m ORDER BY month;",
+      "hint": "매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 월은 YYYY-MM 형식(예: 1997-01)으로 표시한다.",
+      "sql": "WITH m AS (SELECT TO_CHAR(o.order_date, 'YYYY-MM') AS month, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id WHERE o.order_date >= DATE '1997-01-01' AND o.order_date < DATE '1998-01-01' GROUP BY 1) SELECT month, ROUND(revenue::numeric, 2) AS revenue, ROUND((100 * (revenue - LAG(revenue) OVER (ORDER BY month)) / LAG(revenue) OVER (ORDER BY month))::numeric, 2) AS mom_pct FROM m ORDER BY month;",
       "seq": 28,
       "output": [
         "월",
@@ -1793,62 +1793,62 @@
         "row_count": 12,
         "rows": [
           [
-            "1997-01-01",
+            "1997-01",
             61258.07,
             null
           ],
           [
-            "1997-02-01",
+            "1997-02",
             38483.63,
             -37.18
           ],
           [
-            "1997-03-01",
+            "1997-03",
             38547.22,
             0.17
           ],
           [
-            "1997-04-01",
+            "1997-04",
             53032.95,
             37.58
           ],
           [
-            "1997-05-01",
+            "1997-05",
             53781.29,
             1.41
           ],
           [
-            "1997-06-01",
+            "1997-06",
             36362.8,
             -32.39
           ],
           [
-            "1997-07-01",
+            "1997-07",
             51020.86,
             40.31
           ],
           [
-            "1997-08-01",
+            "1997-08",
             47287.67,
             -7.32
           ],
           [
-            "1997-09-01",
+            "1997-09",
             55629.24,
             17.64
           ],
           [
-            "1997-10-01",
+            "1997-10",
             66749.23,
             19.99
           ],
           [
-            "1997-11-01",
+            "1997-11",
             43533.81,
             -34.78
           ],
           [
-            "1997-12-01",
+            "1997-12",
             71398.43,
             64.01
           ]

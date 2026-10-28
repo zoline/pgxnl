@@ -11,7 +11,7 @@ DB 데이터는 변경하지 않았습니다. 질문만 보고 출력 컬럼과 
 - **P5 비율·순위**: 비율은 0~100 퍼센트 값. 근거 건수나 기준값(전월 매출 등)은 질문에 적을 때만 낸다. 순위 번호는 '순위'라고 적을 때만 낸다.
 - **P6 질문당 의도 하나**: '몇 개'는 개수 한 값만 낸다. 개수와 목록을 한 질문에서 동시에 묻지 않는다.
 - **P7 행 순서**: 정렬이 필요한 질문은 질문에 순서를 적는다(예: '매출이 높은 순서로'). 상위 N 질문은 그 기준의 내림차순.
-- **P8 값 표현**: 금액과 비율은 소수 둘째 자리 반올림, 평균 일수는 소수 첫째 자리. 매출 = unit_price * quantity * (1 - discount).
+- **P8 값 표현**: 금액과 비율은 소수 둘째 자리 반올림, 평균 일수는 소수 첫째 자리. 매출 = unit_price * quantity * (1 - discount). 월은 형식을 지정한 문항만 그 형식을 따른다 — 지정 없음: 월 번호 1~12(L2-02), 지정 있음: 힌트에 `YYYY-MM`(L4-05).
 
 ## 수정 문항 (21개)
 
@@ -224,11 +224,11 @@ WITH cust AS (SELECT c.company_name, SUM(od.unit_price * od.quantity * (1 - od.d
 - **새 질문**: 1997년 월별로 월, 매출, 전월 대비 매출 증감률(%)을 월 순서로 보여주세요. 1월의 증감률은 비워 둡니다.
 - **출력 항목**: 월 → 매출 → 전월 대비 증감률(%)
 - **컬럼**: `month, revenue, mom_pct` → `month, revenue, mom_pct`
-- **이유**: 출력 항목과 1월 처리 명시. 전월 매출은 묻지 않으므로 내지 않음 (P1, P5)
-- **힌트**: 매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date.
+- **이유**: 출력 항목과 1월 처리 명시. 전월 매출은 묻지 않으므로 내지 않음 (P1, P5). 월 표시 형식(`YYYY-MM`)을 힌트로 지정 — 형식이 없으면 월 번호·날짜 어느 쪽도 맞는 답이었다(10-28, P8)
+- **힌트**: 매출 = order_details.unit_price * quantity * (1 - discount). 주문 기준일은 orders.order_date. 월은 YYYY-MM 형식(예: 1997-01)으로 표시한다.
 
 ```sql
-WITH m AS (SELECT DATE_TRUNC('month', o.order_date)::date AS month, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id WHERE o.order_date >= DATE '1997-01-01' AND o.order_date < DATE '1998-01-01' GROUP BY 1) SELECT month, ROUND(revenue::numeric, 2) AS revenue, ROUND((100 * (revenue - LAG(revenue) OVER (ORDER BY month)) / LAG(revenue) OVER (ORDER BY month))::numeric, 2) AS mom_pct FROM m ORDER BY month;
+WITH m AS (SELECT TO_CHAR(o.order_date, 'YYYY-MM') AS month, SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue FROM orders o JOIN order_details od ON od.order_id = o.order_id WHERE o.order_date >= DATE '1997-01-01' AND o.order_date < DATE '1998-01-01' GROUP BY 1) SELECT month, ROUND(revenue::numeric, 2) AS revenue, ROUND((100 * (revenue - LAG(revenue) OVER (ORDER BY month)) / LAG(revenue) OVER (ORDER BY month))::numeric, 2) AS mom_pct FROM m ORDER BY month;
 ```
 
 ### seq 29 (L4-06)

@@ -42,7 +42,7 @@ def convert(src: dict) -> list[dict]:
     items = []
     for q in src["questions"]:
         sql = shift_years(q["sql"])
-        evidence = [q["hint"]] if q.get("hint") else []
+        evidence = [shift_years(q["hint"])] if q.get("hint") else []
         # 자릿수는 gold 의 ROUND(…, n) 로 가른다 — 2 는 금액·비율, 1 은 평균 일수(seq 31)뿐이다
         digits = set(re.findall(r",\s*(\d)\s*\)\s*AS\s", sql, re.IGNORECASE)) if re.search(r"ROUND\s*\(", sql, re.I) else set()
         if "2" in digits:
@@ -70,7 +70,7 @@ def _norm(v):
 
 
 def _expected_shifted(v):
-    if isinstance(v, str) and re.fullmatch(r"\d{4}-\d\d-\d\d.*", v):   # 날짜 열은 전부 +28년 적재(입사일 1992~ 포함)
+    if isinstance(v, str) and re.fullmatch(r"\d{4}-\d\d(-\d\d.*)?", v):   # 날짜·YYYY-MM 열은 전부 +28년 적재(입사일 1992~ 포함)
         return str(int(v[:4]) + YEAR_SHIFT) + v[4:10]
     if isinstance(v, int) and 1996 <= v <= 1998:                       # 연도 집계 열
         return v + YEAR_SHIFT
