@@ -35,3 +35,10 @@ __pycache__/
 
 # BIRD 덤프 내려받는 기본 위치 (scripts/download_bird.sh)
 bird_data/
+
+# 인증서·개인키 — 공개 저장소에 올리지 않는다
+certs/
+*.pem
+*.key
+*.pfx
+*.p12
