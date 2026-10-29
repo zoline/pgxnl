@@ -162,11 +162,32 @@ async def similar_queries(target: str, question: str, schema: str | None = None,
     }
 
 
+def load_env_file(path: str) -> None:
+    """KEY=VALUE 줄을 환경변수로. 이미 설정된 환경변수가 우선한다.
+
+    API 키를 클라이언트 설정(예: ~/.claude.json)에 평문으로 남기지 않으려고 쓴다 —
+    키는 권한 600 파일 하나에만 두고 등록에는 경로만 적는다.
+    """
+    with open(os.path.expanduser(path), encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="pgxnl-mcp", description=__doc__.splitlines()[0])
     p.add_argument("--transport", choices=["stdio"], default="stdio",
                    help="지금은 stdio 만 — 사용자 PC 에서 띄워 pgxnl API 를 HTTPS 로 부른다")
-    p.parse_args()
+    p.add_argument("--env-file", help="PGXNL_URL·PGXNL_API_KEY 를 담은 KEY=VALUE 파일(권한 600 권장)")
+    args = p.parse_args()
+    if args.env_file:
+        try:
+            load_env_file(args.env_file)
+        except OSError as exc:
+            raise SystemExit(f"pgxnl-mcp: --env-file 을 읽을 수 없습니다: {exc}") from exc
     try:
         cfg()
     except PgxnlError as exc:

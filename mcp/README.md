@@ -42,13 +42,24 @@ pipx install "git+https://github.com/zoline/pgxnl.git#subdirectory=mcp"
 |---|---|
 | `PGXNL_URL` | pgxnl 주소, 예: `https://pgxnl.example.com` (필수) |
 | `PGXNL_API_KEY` | pgxnl API 키 (필수) |
+| `PGXNL_SERVER_NAME` | URL 을 IP 로 줄 때 인증서 검증·SNI·Host 에 쓸 이름. hosts 를 고칠 수 없는 곳(컨테이너 안 등)용 — 예: `PGXNL_URL=https://203.0.113.10`, `PGXNL_SERVER_NAME=pgxnl.example.com` |
 | `PGXNL_VERIFY_SSL` | `false` 면 인증서 검증을 끈다 — 자체 서명 인증서일 때만. 기본 `true` |
 | `PGXNL_MCP_MAX_ROWS` | 클라이언트에 넘길 최대 행 수. 기본 50 |
 | `PGXNL_MCP_MAX_CHARS` | 결과 JSON 최대 글자 수(넓은 행 대비). 기본 20000 |
 
 ## 클라이언트 등록
 
-Claude Code:
+키를 클라이언트 설정 파일에 평문으로 남기지 않으려면 `--env-file` 을 쓴다(권장).
+```bash
+mkdir -p ~/.config/pgxnl-mcp && chmod 700 ~/.config/pgxnl-mcp
+printf 'PGXNL_URL=https://pgxnl.example.com\nPGXNL_API_KEY=<API 키>\n' > ~/.config/pgxnl-mcp/env
+chmod 600 ~/.config/pgxnl-mcp/env
+
+claude mcp add -s user pgxnl -- pgxnl-mcp --env-file ~/.config/pgxnl-mcp/env
+```
+이미 설정된 환경변수가 파일보다 우선한다.
+
+환경변수로 직접 넘기는 방법 — Claude Code:
 ```bash
 claude mcp add pgxnl \
   -e PGXNL_URL=https://pgxnl.example.com \

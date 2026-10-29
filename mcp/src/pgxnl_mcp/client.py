@@ -27,6 +27,10 @@ class Config:
     url: str
     api_key: str
     verify_ssl: bool = True
+    #: URL 은 IP 로 두고 인증서 검증·SNI·Host 헤더만 이 이름으로 한다. hosts 파일을 고칠 수 없는
+    #: 곳(watsonx Orchestrate Developer Edition 은 MCP 를 Lima VM 안 컨테이너에서 돌린다)에서
+    #: DNS 에 없는 이름의 인증서를 검증을 끄지 않고 쓰기 위한 것(2026-10-29).
+    server_name: str | None = None
 
     @classmethod
     def from_env(cls) -> Config:
@@ -35,12 +39,23 @@ class Config:
         if not url or not key:
             raise PgxnlError("PGXNL_URL 과 PGXNL_API_KEY 환경변수가 필요합니다")
         verify = os.environ.get("PGXNL_VERIFY_SSL", "true").lower() not in ("0", "false", "no")
-        return cls(url=url, api_key=key, verify_ssl=verify)
+        server_name = os.environ.get("PGXNL_SERVER_NAME", "").strip() or None
+        return cls(url=url, api_key=key, verify_ssl=verify, server_name=server_name)
 
 
 def _client(cfg: Config, timeout: float = DEFAULT_TIMEOUT_SECONDS) -> httpx.AsyncClient:
+    headers = {"X-API-Key": cfg.api_key}
+    event_hooks: dict[str, list] = {}
+    if cfg.server_name:
+        headers["Host"] = cfg.server_name
+
+        async def set_sni(request: httpx.Request) -> None:
+            # httpcore 는 sni_hostname 으로 TLS 핸드셰이크와 인증서 이름 검증을 함께 한다.
+            request.extensions["sni_hostname"] = cfg.server_name
+
+        event_hooks["request"] = [set_sni]
     return httpx.AsyncClient(
-        base_url=cfg.url, headers={"X-API-Key": cfg.api_key}, verify=cfg.verify_ssl, timeout=timeout,
+        base_url=cfg.url, headers=headers, verify=cfg.verify_ssl, timeout=timeout, event_hooks=event_hooks,
     )
 
 

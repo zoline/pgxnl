@@ -95,6 +95,34 @@ def test_cap_rows_none():
     assert server._cap_rows(None) == {"row_count": 0, "rows": [], "truncated": False}
 
 
+async def test_server_name_sets_host_and_sni():
+    cfg = Config(url="https://203.0.113.10", api_key="k", server_name="pgxnl.example.com")
+    async with client._client(cfg) as c:
+        req = c.build_request("GET", "/api/targets")
+        for hook in c.event_hooks["request"]:
+            await hook(req)
+    assert req.headers["Host"] == "pgxnl.example.com"
+    assert req.extensions["sni_hostname"] == "pgxnl.example.com"
+    assert req.url.host == "203.0.113.10"
+
+
+async def test_no_server_name_leaves_request_alone():
+    async with client._client(CFG) as c:
+        req = c.build_request("GET", "/api/targets")
+    assert "sni_hostname" not in req.extensions and not c.event_hooks["request"]
+
+
+def test_env_file_fills_missing_but_env_wins(monkeypatch, tmp_path):
+    f = tmp_path / "env"
+    f.write_text('# 주석\nPGXNL_URL=https://from-file\nPGXNL_API_KEY="k-file"\n\nBROKEN\n')
+    monkeypatch.delenv("PGXNL_API_KEY", raising=False)
+    monkeypatch.setenv("PGXNL_URL", "https://from-env")
+    server.load_env_file(str(f))
+    import os
+    assert os.environ["PGXNL_URL"] == "https://from-env"
+    assert os.environ["PGXNL_API_KEY"] == "k-file"
+
+
 def test_config_requires_url_and_key(monkeypatch):
     monkeypatch.delenv("PGXNL_URL", raising=False)
     monkeypatch.delenv("PGXNL_API_KEY", raising=False)
