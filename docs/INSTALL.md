@@ -307,6 +307,41 @@ journalctl -u pgxnl -f
 
 `--reload` 없이 띄우므로 **코드나 `.env` 를 고치면 재기동해야 반영된다.**
 
+### 4.3 HTTPS 로 운영 (외부 공개·MCP 원격 사용 시)
+
+평문 HTTP 는 로그인 비밀번호·API 키가 그대로 오간다 — 내부망 시험용으로만 쓰고, 외부에 열 때는
+인증서를 붙인다. uvicorn 이 인증서를 직접 받으므로 서버 코드는 바꿀 것이 없다.
+
+인증서(체인 포함 PEM)와 개인키를 고정 이름으로 둔다 — 교체할 때 설정을 안 고쳐도 된다:
+```bash
+sudo mkdir -p /etc/pgxnl/tls
+sudo install -o root -g pgxnl-app -m 644 fullchain.pem /etc/pgxnl/tls/cert.pem
+sudo install -o root -g pgxnl-app -m 640 privkey.pem   /etc/pgxnl/tls/key.pem
+sudo restorecon -R /etc/pgxnl      # SELinux(RHEL) 일 때
+```
+`.pfx` 만 받았다면 `openssl pkcs12 -in x.pfx -nokeys -out fullchain.pem`, `-nocerts -nodes -out privkey.pem` 으로 뽑는다.
+
+4.2 의 `ExecStart` 를 바꾼다. root 가 아닌 계정은 443 을 직접 열 수 없으므로 8443 에서 받고 방화벽이 넘긴다:
+```ini
+ExecStart=/opt/pgxnl/.venv/bin/uvicorn pgxnl.main:app --host 0.0.0.0 --port 8443 \
+    --ssl-certfile /etc/pgxnl/tls/cert.pem --ssl-keyfile /etc/pgxnl/tls/key.pem
+```
+```bash
+# firewalld(RHEL): 443 → 8443
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --permanent --add-forward-port=port=443:proto=tcp:toport=8443
+sudo firewall-cmd --reload
+```
+
+- **이름**: 인증서는 이름으로 검증된다. DNS 에 등록하지 않았다면 접속하는 PC 마다 hosts 에
+  `203.0.113.10  pgxnl.example.com` 처럼 넣는다(서버 자신은 localhost 로 부르므로 불필요).
+- **확인**: `curl --resolve pgxnl.example.com:443:203.0.113.10 https://pgxnl.example.com/healthz` →
+  `{"status":"ok","system_db":true}`. 인증서 오류가 나면 이름·체인을 다시 본다.
+- **교체**: 새 PEM 두 개를 같은 경로에 덮어쓰고 `sudo systemctl restart pgxnl`(몇 초 끊김, 진행 중 평가가
+  없을 때). 무중단 교체가 필요하면 앞에 Caddy·nginx 를 두고 `reload` 한다.
+- **함께 닫을 것**: pgxnl 을 HTTPS 로 열면 DB(5432)·LLM(8000)·임베딩(8001) 포트는 외부에 열 이유가 없다.
+  pgxnl 이 같은 서버에 있으면 모두 내부 통신이다 — 개발 PC 대역만 허용하거나 닫는다.
+
 ---
 
 ## 5. 첫 기동과 관리 화면 설정
@@ -657,6 +692,17 @@ git config core.hooksPath .githooks        # 끄기: git config --unset core.hoo
 
 백업: 시스템 DB 는 `pg_dump -Fc pgxnl` 로 뜬다. jsonb 열(규칙 정의 등)을 `::text` 로 떠서
 `::jsonb` 로 다시 넣는 식의 수작업 백업은 이중 인코딩으로 깨지므로 쓰지 않는다.
+
+### 7.1 MCP 로 외부 agent 연결
+
+Claude Code·Claude Desktop·watsonx Orchestrate 같은 agent 가 pgxnl 을 도구로 쓰게 하는 MCP 서버가
+`mcp/` 에 있다(`pgxnl-mcp`). pgxnl API 를 API 키로 부르는 얇은 다리라 읽기 전용·비용 상한·감사 기록이
+웹 화면과 똑같이 적용된다. `ask` 는 SQL 과 결과 행을 돌려주고 해석은 agent 쪽 LLM 이 한다.
+
+1. 관리 → 사용자에서 agent 용 사용자(역할 `user`)를 만들고 API 키를 받는다 — agent 마다 따로.
+2. 외부에서 쓰면 4.3 의 HTTPS 를 먼저 갖춘다.
+3. 설치·등록은 [mcp/README.md](../mcp/README.md) — 사용자 PC(Claude Code/Desktop)와
+   watsonx Orchestrate Developer Edition 절차가 각각 있다.
 
 ---
 

@@ -67,19 +67,77 @@ claude mcp add pgxnl \
   -- pgxnl-mcp
 ```
 
-Claude Desktop (`claude_desktop_config.json`):
+Claude Desktop (`claude_desktop_config.json`) — `--env-file` 경로는 절대 경로로:
 ```json
 {
   "mcpServers": {
     "pgxnl": {
       "command": "pgxnl-mcp",
-      "env": { "PGXNL_URL": "https://pgxnl.example.com", "PGXNL_API_KEY": "<API 키>" }
+      "args": ["--env-file", "/home/<사용자>/.config/pgxnl-mcp/env"]
     }
   }
 }
 ```
 
+확인: `claude mcp get pgxnl` 이 `✔ Connected` 면 새 세션에서 "northwind 에서 배송사별 주문 건수 알려줘"처럼 묻는다.
+
 API 키는 그 사용자의 권한 그대로 쓰인다 — 키를 공유하지 말고 사용자(또는 agent)마다 따로 발급한다.
+
+## watsonx Orchestrate (Developer Edition)
+
+Orchestrate 는 MCP 를 자기 VM 안의 도구 실행 컨테이너에서 돌린다. 그래서 호스트의 hosts 파일이나
+`~/.bashrc` 가 보이지 않는다 — 값은 **연결(connection)** 로만 넘기고, 이름 해석 대신 IP 로 접속하면서
+인증서 검증만 이름으로 한다(`PGXNL_SERVER_NAME`). 연결 값은 Orchestrate DB 에 암호화돼 저장되고
+MCP 프로세스를 띄울 때 환경변수로 들어간다.
+
+1. 패키지 폴더 — 소스와 `requirements.txt` 만 둔다(Orchestrate 가 zip 으로 묶어 올리고 컨테이너에서 설치한다):
+   ```bash
+   mkdir -p ~/pgxnl-mcp-toolkit
+   cp -r <pgxnl 저장소>/mcp/src/pgxnl_mcp ~/pgxnl-mcp-toolkit/
+   printf 'mcp>=1.20,<2\nhttpx>=0.27\n' > ~/pgxnl-mcp-toolkit/requirements.txt
+   ```
+2. 연결 — Developer Edition 은 `draft` 환경만 있다:
+   ```bash
+   orchestrate connections add -a pgxnl
+   orchestrate connections configure -a pgxnl --env draft -t team -k key_value
+   orchestrate connections set-credentials -a pgxnl --env draft \
+     -e "PGXNL_URL=https://203.0.113.10" \
+     -e "PGXNL_SERVER_NAME=pgxnl.example.com" \
+     -e "PGXNL_API_KEY=<API 키>"
+   ```
+   대화형 셸에서 치면 키가 셸 기록에 남는다 — 앞에 공백을 두거나(`HISTCONTROL=ignorespace`) 실행 후 기록에서 지운다.
+3. toolkit:
+   ```bash
+   orchestrate toolkits add --kind mcp --name pgxnl \
+     --description "PostgreSQL 자연어 질의(pgxnl)" \
+     --package-root ~/pgxnl-mcp-toolkit --language python \
+     --command "python -m pgxnl_mcp.server" --tools "*" --app-id pgxnl
+   orchestrate toolkits list          # pgxnl:ask 등 도구 8개
+   ```
+4. 에이전트 — 예시 `agent.yaml`:
+   ```yaml
+   spec_version: v1
+   kind: native
+   name: pgxnl_analyst
+   description: PostgreSQL 데이터 질문을 pgxnl 로 SQL 을 만들어 실행하고 결과를 설명한다
+   llm: <orchestrate models list 의 모델>
+   style: default
+   instructions: |
+     데이터 질문은 pgxnl:ask 로 처리한다. 대상 DB 를 모르면 pgxnl:list_targets 로 확인한다.
+     ask 가 돌려준 rows 를 근거로 답하고 실행된 SQL 도 보여준다. rows 에 없는 숫자는 지어내지 않는다.
+   tools: [pgxnl:list_targets, pgxnl:list_schemas, pgxnl:describe_schema, pgxnl:ask,
+           pgxnl:run_sql, pgxnl:explain, pgxnl:find_join_path, pgxnl:similar_queries]
+   ```
+   ```bash
+   orchestrate agents import -f agent.yaml
+   orchestrate chat ask -n pgxnl_analyst "northwind 에서 배송사별 주문 건수를 알려줘"
+   ```
+   `chat ask` 는 첫 답 뒤 대화형 입력을 기다린다 — 스크립트에서 `</dev/null` 로 돌리면 EOF 오류가
+   반복되니 출력 앞부분을 본다. 웹 화면(기본 3000 포트)에서 대화해도 된다.
+
+- 키 교체: `set-credentials` 를 다시 실행. 코드 갱신: 폴더를 새로 복사하고 `toolkits add` 를 다시 실행.
+- Developer Edition 을 초기화하면 연결·toolkit·에이전트가 모두 사라진다 — 2~4 를 다시 한다.
+- 되돌리기: `agents remove -n pgxnl_analyst -k native` → `toolkits remove -n pgxnl` → `connections remove -a pgxnl`.
 
 ## 개발
 
