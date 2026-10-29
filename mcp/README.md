@@ -135,6 +135,22 @@ MCP 프로세스를 띄울 때 환경변수로 들어간다.
    `chat ask` 는 첫 답 뒤 대화형 입력을 기다린다 — 스크립트에서 `</dev/null` 로 돌리면 EOF 오류가
    반복되니 출력 앞부분을 본다. 웹 화면(기본 3000 포트)에서 대화해도 된다.
 
+### 화면 예시
+
+Northwind 전용 에이전트(`northwind_analyst` — 지시문으로 `target` 을 northwind 로 고정하고
+`list_targets` 를 뺀 것)에 질문한 결과. 표·매출 정의·SQL 설명은 Orchestrate 쪽 LLM 이 pgxnl 이 돌려준
+행으로 쓴 것이다.
+
+![Orchestrate 에서 pgxnl 로 답한 화면](docs/orchestrate-answer.png)
+
+"Show Reasoning" 을 펼치면 `pgxnl:ask` 호출 입력(`target`, `schema`, `evidence`)과 pgxnl 이 돌려준
+출력(`ok`, `sql`, `rows`)이 보인다.
+
+![pgxnl:ask 도구 호출](docs/orchestrate-tool-call.png)
+
+에이전트 지시문으로 대상 DB 를 고정하는 것은 **모델이 따르는 약속**일 뿐 차단이 아니다 — 같은 API 키로
+다른 DB 도 질의할 수 있다. pgxnl 에는 아직 사용자별 대상 DB 제한이 없다.
+
 - 키 교체: `set-credentials` 를 다시 실행. 코드 갱신: 폴더를 새로 복사하고 `toolkits add` 를 다시 실행.
 - Developer Edition 을 초기화하면 연결·toolkit·에이전트가 모두 사라진다 — 2~4 를 다시 한다.
 - 되돌리기: `agents remove -n pgxnl_analyst -k native` → `toolkits remove -n pgxnl` → `connections remove -a pgxnl`.
