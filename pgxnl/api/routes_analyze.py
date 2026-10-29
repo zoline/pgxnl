@@ -27,6 +27,10 @@ class AnalyzeRequest(BaseModel):
     # 보려면 필수다(캐시 히트면 바꾼 설정이 SQL에 전혀 반영되지 않는다). BIRD 평가 하네스가
     # 같은 이유로 use_cache=False로 돈다.
     use_cache: bool = True
+    # MCP 처럼 결과 해석을 호출 쪽 LLM 이 하는 경우(2026-10-29). execute=False 는 "SQL만 받기",
+    # summarize=False 는 요약 없이 rows 를 받는다 — orchestrator.analyze() docstring 참고.
+    execute: bool = True
+    summarize: bool = True
 
     model_config = {"populate_by_name": True}
 
@@ -82,6 +86,34 @@ async def target_join_graph(name: str, schema: str = "", user: CurrentUser = Dep
              "source": e.source, "confidence": e.confidence}
             for e in edges
         ]
+    }
+
+
+@router.get("/targets/{name}/join-path")
+async def target_join_path(
+    name: str, from_table: str, to_table: str, max_hops: int = 5, schema: str = "",
+    user: CurrentUser = Depends(get_current_user),
+):
+    """두 테이블 사이 JOIN 경로 — 일반 사용자용(MCP `find_join_path`, 2026-10-29). 승인된
+    관계만 쓰므로(find_path) join-graph 와 같은 기준이다. 관리자 경로(/api/admin/...)와 같은 모양."""
+    from pgxnl.agent.discovery.graph import find_path
+    from pgxnl.api.state import state
+
+    if state.system_pool is None:
+        raise HTTPException(503, "시스템 DB 미연결")
+    path = await find_path(state.system_pool, name, from_table, to_table, max_hops, schema=schema or None)
+    if path is None:
+        return {"found": False, "path": None}
+    return {
+        "found": True,
+        "path": {
+            "tables": path.tables,
+            "hops": path.hops,
+            "edges": [
+                {"table_a": e.table_a, "column_a": e.column_a, "table_b": e.table_b, "column_b": e.column_b}
+                for e in path.edges
+            ],
+        },
     }
 
 
@@ -466,11 +498,17 @@ async def analyze(req: AnalyzeRequest, user: CurrentUser = Depends(get_current_u
             result = await orchestrator.analyze(
                 req.question, user_id=user.id, on_step=on_step, debug=req.debug, schema=req.schema_name,
                 evidence=req.evidence, use_cache=req.use_cache,
+                execute=req.execute, summarize=req.summarize,
             )
+            payload = {"answer": result.answer, "sql_steps": result.sql_steps, "from_cache": result.from_cache}
+            if not req.summarize:
+                # 요약을 받는 화면 경로는 그대로 둔다 — rows 는 해석을 맡은 쪽에만 보낸다.
+                # 거부·실행 실패면 rows 가 None 이고 answer 에 사유가 담긴다.
+                payload["rows"] = result.rows
             await queue.put({
                 "event": "answer",
                 "data": json.dumps(
-                    {"answer": result.answer, "sql_steps": result.sql_steps, "from_cache": result.from_cache},
+                    payload,
                     ensure_ascii=False, default=str,
                 ),
             })

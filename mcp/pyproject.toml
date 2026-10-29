@@ -1,0 +1,27 @@
+[project]
+name = "pgxnl-mcp"
+version = "0.1.0"
+description = "pgxnl MCP 서버 — 외부 agent 가 pgxnl API 로 자연어 질의·SQL 실행을 하게 하는 얇은 다리"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.20,<2",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+pgxnl-mcp = "pgxnl_mcp.server:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2", "pytest-asyncio>=0.23"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]

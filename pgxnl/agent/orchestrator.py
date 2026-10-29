@@ -170,6 +170,9 @@ class AnalysisResult:
     failed_sql: str | None = None
     #: ReAct 루프 안에서 발동한 가드 이름, 발동 순서대로(2026-10-06). 캐시 히트면 빈 목록.
     guards_fired: list[str] = field(default_factory=list)
+    #: 최종 SQL 실행 결과 행. 실행하지 않았으면(execute=False·거부·실패) None.
+    #: MCP 처럼 해석을 클라이언트 LLM 이 하는 경우 요약 대신 이것을 넘긴다(2026-10-29).
+    rows: list[dict[str, Any]] | None = None
 
 
 class Orchestrator:
@@ -475,6 +478,7 @@ class Orchestrator:
     async def analyze(
         self, question: str, *, user_id: int, on_step: OnStep | None = None, schema: str = "public",
         debug: bool = False, evidence: str | None = None, use_cache: bool = True,
+        execute: bool = True, summarize: bool = True,
     ) -> AnalysisResult:
         """schema: 탐색/실행 기본 스키마. BIRD처럼 문항(db_id)마다 스키마가 다른
         평가 시나리오에서 orchestrator 하나(=하나의 DB 커넥션 풀)를 공유하면서도
@@ -496,7 +500,13 @@ class Orchestrator:
         압축"하는 게 목적이라, evidence가 question에 섞여 있으면 재작성 과정에서 evidence가
         조용히 사라지는 문제를 실측으로 확인했다(예: "Virtual = 'F'"라는 근거가 재작성된
         질문에서 빠져 모델이 다른 값을 추측함). enrichment는 question에만 적용하고, evidence는
-        그 뒤에 원문 그대로 다시 붙여 스키마 링킹/SQL 생성/캐시 키에 전달한다."""
+        그 뒤에 원문 그대로 다시 붙여 스키마 링킹/SQL 생성/캐시 키에 전달한다.
+
+        execute/summarize: MCP 클라이언트처럼 결과 해석을 호출 쪽 LLM 이 하는 경우(2026-10-29).
+        execute=False 면 검증까지 통과한 SQL 만 돌려주고 최종 실행을 하지 않는다("SQL만 받기" —
+        ReAct 루프 안의 후보 실행·가드는 그대로 돈다, 생성 품질이 거기에 기대므로).
+        summarize=False 면 요약 LLM 호출을 건너뛰고 rows 를 돌려준다. 어느 쪽이든 answer 가
+        비므로 시맨틱 캐시에는 저장하지 않는다 — 화면이 그 캐시를 히트하면 빈 답이 뜬다."""
         t0 = time.monotonic()
         # 스키마 컨텍스트/프롬프트 전문은 길 수 있어 상한을 둔다 — 실제 LLM 호출에 쓰이는
         # system_prompt 자체는 잘리지 않는다(이 한도는 emit_debug 표시 전용). 규칙/few-shot이
@@ -726,6 +736,13 @@ class Orchestrator:
                 guards_fired=guards_fired,
             )
 
+        if not execute:
+            await emit_debug(f"실행 생략(execute=False). 총 소요시간 {time.monotonic() - t0:.2f}s")
+            return AnalysisResult(
+                answer="", sql_steps=[{"sql": canon_sql}], from_cache=cached is not None,
+                guards_fired=guards_fired,
+            )
+
         # [10] 실행
         await emit("SQL 실행 중...")
         try:
@@ -743,6 +760,12 @@ class Orchestrator:
                 guards_fired=guards_fired,
             )
         await emit_debug(f"실행 결과 {len(rows)}행 반환됨, 샘플: {rows[:3]}")
+        if not summarize:
+            await emit_debug(f"요약 생략(summarize=False). 총 소요시간 {time.monotonic() - t0:.2f}s")
+            return AnalysisResult(
+                answer="", sql_steps=[{"sql": canon_sql}], from_cache=cached is not None,
+                guards_fired=guards_fired, rows=rows,
+            )
         # ReAct 루프의 finalize() 답변은 실제 실행 결과를 보지 못한 채 작성된
         # 텍스트다(generate_sql은 문법 검증만 하고 실행하지 않는다) — 캐시 히트
         # 여부와 무관하게 항상 방금 실행한 rows를 근거로 답변을 새로 요약한다.
@@ -758,6 +781,7 @@ class Orchestrator:
 
         return AnalysisResult(
             answer=final_answer, sql_steps=sql_steps, from_cache=cached is not None, guards_fired=guards_fired,
+            rows=rows,
         )
 
     async def run_sql(self, sql: str, *, user_id: int, schema: str = "public") -> dict[str, Any]:
